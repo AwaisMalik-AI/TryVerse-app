@@ -10,12 +10,16 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.xvantech.tryverse",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "TryVerse needs camera access to take selfies for virtual try-on",
         "NSPhotoLibraryUsageDescription": "TryVerse needs photo library access to select photos for virtual try-on"
       }
     },
     "android": {
+      "package": "com.xvantech.tryverse",
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#1a1a2e",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -24,8 +28,11 @@
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -48,7 +55,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#1a1a2e"
         }
       ]
     ],
@@ -58,8 +65,10 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
-      }
-    }
+        "projectId": "c5264b24-7574-4397-8c06-74f6b631e88c"
+      },
+      "router": {}
+    },
+    "owner": "awais_malik"
   }
 }
