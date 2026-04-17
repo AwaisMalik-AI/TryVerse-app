@@ -13,6 +13,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { sendLocalNotification } from '@/lib/notifications';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -126,16 +127,17 @@ const STYLIST_CATEGORY_WELCOME: Record<StylistCategoryId, string> = {
 export default function StyleScreen() {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const POSE_SIZE = (width - Spacing.xl * 2 - Spacing.md * 2) / 3;
   const [showProPopup, setShowProPopup] = useState(false);
-  const [tab, setTab] = useState<Tab>('stylist');
+  const [tab, setTab] = useState<Tab>(params.tab === 'poses' ? 'poses' : 'stylist');
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [selectedPresetIds, setSelectedPresetIds] = useState<Set<number>>(new Set());
   const [posePhotoUri, setPosePhotoUri] = useState<string | null>(null);
-  const [poseResult, setPoseResult] = useState<string | null>(null);
+  const [poseResults, setPoseResults] = useState<string[]>([]);
   const [poseFeedback, setPoseFeedback] = useState<string | null>(null);
   const [isGeneratingPose, setIsGeneratingPose] = useState(false);
   const [stylistPhotoUri, setStylistPhotoUri] = useState<string | null>(null);
@@ -154,6 +156,10 @@ export default function StyleScreen() {
   }, []);
 
   useEffect(() => {
+    if (params.tab === 'poses') setTab('poses');
+  }, [params.tab]);
+
+  useEffect(() => {
     loadPosePresets();
   }, [loadPosePresets]);
 
@@ -169,8 +175,6 @@ export default function StyleScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
-      allowsEditing: true,
-      aspect: [3, 4],
     });
     if (!result.canceled && result.assets[0]) {
       const uri = result.assets[0].uri;
@@ -275,12 +279,10 @@ export default function StyleScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
-      allowsEditing: true,
-      aspect: [3, 4],
     });
     if (!result.canceled && result.assets[0]) {
       setPosePhotoUri(result.assets[0].uri);
-      setPoseResult(null);
+      setPoseResults([]);
     }
   };
 
@@ -313,25 +315,28 @@ export default function StyleScreen() {
       preset_ids: JSON.stringify(presetIdsArray),
     });
     setIsGeneratingPose(false);
-    console.log('[POSE] Generation response', { ok: res.ok, status: res.status, hasData: !!res.data });
+    if (__DEV__) console.log('[POSE] Generation response', { ok: res.ok, status: res.status, hasData: !!res.data });
     if (res.ok && res.data) {
       const data = res.data as { generated_image_urls?: string[] };
       if (data.generated_image_urls && data.generated_image_urls.length > 0) {
-        const url = data.generated_image_urls[0];
-        setPoseResult(url.startsWith('http') ? url : `${API_URL}${url}`);
+        const urls = data.generated_image_urls.map((url) =>
+          url.startsWith('http') ? url : `${API_URL}${url}`,
+        );
+        setPoseResults(urls);
         setPoseFeedback((res.data as any)?.ai_feedback || null);
-        console.log('[POSE] Generation completed', { resultCount: data.generated_image_urls.length });
-        sendLocalNotification('Image Ready!', 'Your pose is ready. Open the app to view and save it.');
+        if (__DEV__) console.log('[POSE] Generation completed', { resultCount: urls.length });
+        const count = urls.length;
+        sendLocalNotification('Image Ready!', `Your ${count > 1 ? `${count} poses are` : 'pose is'} ready. Open the app to view and save.`);
         Alert.alert(
           'Image Ready!',
-          'Your pose image has been generated. Save it to your gallery before leaving.'
+          `Your ${count > 1 ? `${count} pose images have` : 'pose image has'} been generated. Save to your gallery before leaving.`
         );
         if (!user?.is_pro) {
           setTimeout(() => setShowProPopup(true), 2000);
         }
       }
     } else {
-      console.log('[POSE] Generation failed', { endpoint, error: res.error });
+      if (__DEV__) console.log('[POSE] Generation failed', { endpoint, error: res.error });
       Alert.alert('Error', (res.error as string) || 'Generation failed');
     }
   };
@@ -574,9 +579,14 @@ export default function StyleScreen() {
             </LinearGradient>
           </Pressable>
 
-          {poseResult && (
-            <ImageResult imageUrl={poseResult} title="Your Pose Result" aiFeedback={poseFeedback} />
-          )}
+          {poseResults.map((url, i) => (
+            <ImageResult
+              key={`${url}-${i}`}
+              imageUrl={url}
+              title={poseResults.length > 1 ? `Pose Result ${i + 1}` : 'Your Pose Result'}
+              aiFeedback={i === 0 ? poseFeedback : null}
+            />
+          ))}
 
           <View style={{ height: TAB_BAR_SPACER }} />
         </ScrollView>
@@ -751,7 +761,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.sm,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 12,
+    paddingBottom: Platform.OS === 'ios' ? 30 : TAB_BAR_SPACER + 12,
     borderTopWidth: 1,
     borderTopColor: Colors.light.borderLight,
     gap: Spacing.sm,
@@ -795,8 +805,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
     position: 'relative',
+    borderWidth: 3,
+    borderColor: 'transparent',
   },
-  poseGridItemSelected: { borderWidth: 3, borderColor: Colors.light.gold },
+  poseGridItemSelected: { borderColor: Colors.light.gold },
   poseGridImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   poseGridOverlay: {
     position: 'absolute',

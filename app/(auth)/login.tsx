@@ -96,7 +96,7 @@ export default function LoginScreen() {
               <Ionicons
                 name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                 size={20}
-                color={Colors.light.textMuted}
+                color={Colors.light.textSecondary}
               />
             </Pressable>
           </View>
@@ -211,7 +211,9 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   eyeButton: {
-    padding: Spacing.xs,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.light.surfaceSecondary,
   },
   forgotButton: {
     alignSelf: 'flex-end',

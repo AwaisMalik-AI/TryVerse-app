@@ -196,19 +196,21 @@ export default function ShopScreen() {
         )}
       </View>
 
-      {/* Gender Filter */}
-      <View style={styles.filterRow}>
-        {(['all', 'women', 'men'] as const).map((g) => (
-          <Pressable
-            key={g}
-            onPress={() => setGender(g)}
-            style={[styles.filterChip, gender === g && styles.filterChipActive]}>
-            <Text style={[styles.filterChipText, gender === g && styles.filterChipTextActive]}>
-              {g === 'all' ? 'All' : g === 'women' ? 'Women' : 'Men'}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      {/* Gender Filter — only when viewing a store's products */}
+      {selectedStore && (
+        <View style={styles.filterRow}>
+          {(['all', 'women', 'men'] as const).map((g) => (
+            <Pressable
+              key={g}
+              onPress={() => setGender(g)}
+              style={[styles.filterChip, gender === g && styles.filterChipActive]}>
+              <Text style={[styles.filterChipText, gender === g && styles.filterChipTextActive]}>
+                {g === 'all' ? 'All' : g === 'women' ? 'Women' : 'Men'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
 
       {selectedStore && (
         <View style={styles.selectedBrandBar}>

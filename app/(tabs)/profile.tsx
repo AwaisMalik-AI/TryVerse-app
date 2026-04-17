@@ -153,6 +153,7 @@ export default function ProfileScreen() {
               )}
             </LinearGradient>
           </Pressable>
+          <View style={{ height: TAB_BAR_SPACER }} />
         </ScrollView>
       </SafeAreaView>
     );
@@ -221,6 +222,7 @@ export default function ProfileScreen() {
               thumbColor={promoNotifications ? Colors.light.gold : '#f4f3f4'}
             />
           </View>
+          <View style={{ height: TAB_BAR_SPACER }} />
         </ScrollView>
       </SafeAreaView>
     );

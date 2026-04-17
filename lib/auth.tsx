@@ -23,7 +23,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  signup: (email: string, password: string, fullName: string) => Promise<{ ok: boolean; error?: string; message?: string }>;
+  signup: (email: string, fullName: string) => Promise<{ ok: boolean; error?: string; message?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   /** Register a callback when the session is cleared (e.g. 401). Returns unsubscribe. */
@@ -88,23 +88,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const userData = (await response.json()) as Record<string, unknown>;
-
-      try {
-        const subRes = await apiFetch('/api/subscription/status');
-        if (subRes.ok) {
-          const subData = (await subRes.json()) as Record<string, unknown>;
-          userData.is_pro = subData.is_pro === true;
-          userData.subscription_tier = subData.plan as string || 'free';
-        }
-      } catch {}
-
-      await setUser(userData);
-      setUserState(userData as unknown as UserData);
+      const enriched = await fetchSubscriptionStatus(userData);
+      await setUser(enriched);
+      setUserState(enriched as unknown as UserData);
     } catch {
       await clearSession();
       setUserState(null);
     }
     setIsLoading(false);
+  };
+
+  const fetchSubscriptionStatus = async (userData: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    try {
+      const subRes = await apiFetch('/api/subscription/status');
+      if (subRes.ok) {
+        const subData = (await subRes.json()) as Record<string, unknown>;
+        userData.is_pro = subData.is_pro === true;
+        userData.subscription_tier = (subData.plan as string) || 'free';
+      }
+    } catch {}
+    return userData;
   };
 
   const login = async (email: string, password: string) => {
@@ -113,43 +116,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       formData.append('username', email);
       formData.append('password', password);
 
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
-      console.log('[AUTH] Attempting login to:', `${apiUrl}/api/auth/login`);
-
       const response = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),
       });
 
-      console.log('[AUTH] Response status:', response.status);
-
       if (response.ok) {
         const data = await response.json();
         await setToken(data.access_token);
-        await setUser(data.user as Record<string, unknown>);
-        setUserState(data.user as UserData);
+        const enriched = await fetchSubscriptionStatus(data.user as Record<string, unknown>);
+        await setUser(enriched);
+        setUserState(enriched as unknown as UserData);
         return { ok: true };
       } else {
         let errorMsg = 'Login failed';
         try {
           const errData = await response.json();
-          console.log('[AUTH] Error response:', JSON.stringify(errData));
           if (typeof errData.detail === 'string') errorMsg = errData.detail;
         } catch {}
         return { ok: false, error: errorMsg };
       }
-    } catch (err) {
-      console.log('[AUTH] Connection error:', String(err));
-      return { ok: false, error: `Cannot reach server. Make sure backend is running and firewall allows port 8000.` };
+    } catch {
+      return { ok: false, error: 'Cannot connect to the server. Please check your internet connection and try again.' };
     }
   };
 
-  const signup = async (email: string, _password: string, fullName: string) => {
+  const signup = async (email: string, fullName: string) => {
     const res = await apiPost<{ message: string }>('/api/auth/signup', {
       email,
       full_name: fullName,
-      source: 'mobile',
+      source: 'user',
     });
     if (res.ok) {
       return { ok: true, message: res.data?.message || 'Verification email sent. Check your inbox.' };
@@ -158,13 +155,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    try {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
     await clearSession();
     setUserState(null);
   };
 
   const refreshUser = async () => {
-    const userData = await getUser();
-    if (userData) setUserState(userData as unknown as UserData);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const response = await apiFetch('/api/user/me');
+      if (!response.ok) return;
+      const userData = (await response.json()) as Record<string, unknown>;
+      const enriched = await fetchSubscriptionStatus(userData);
+      await setUser(enriched);
+      setUserState(enriched as unknown as UserData);
+    } catch {}
   };
 
   return (

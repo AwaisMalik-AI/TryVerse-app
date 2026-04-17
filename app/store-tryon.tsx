@@ -75,15 +75,11 @@ export default function StoreTryOnScreen() {
       result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         quality: 0.8,
-        allowsEditing: true,
-        aspect: [3, 4],
       });
     } else {
       result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 0.8,
-        allowsEditing: true,
-        aspect: [3, 4],
       });
     }
 

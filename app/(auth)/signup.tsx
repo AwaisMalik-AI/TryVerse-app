@@ -23,31 +23,20 @@ export default function SignupScreen() {
   const { signup } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!fullName.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('Missing Fields', 'Please fill in all fields.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('Password Mismatch', 'Passwords do not match.');
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert('Weak Password', 'Password must be at least 6 characters.');
+    if (!fullName.trim() || !email.trim()) {
+      Alert.alert('Missing Fields', 'Please enter your name and email.');
       return;
     }
     setIsLoading(true);
-    const result = await signup(email.trim(), password, fullName.trim());
+    const result = await signup(email.trim(), fullName.trim());
     setIsLoading(false);
     if (result.ok) {
       Alert.alert(
         'Check Your Email',
-        'We sent a verification link to your email. Please verify your account, then come back and sign in.',
+        'We sent a verification link to your email where you can set your password. Please check your inbox, then come back and sign in.',
         [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }],
       );
     } else {
@@ -102,36 +91,9 @@ export default function SignupScreen() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color={Colors.light.textMuted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={Colors.light.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-            />
-            <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-              <Ionicons
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={20}
-                color={Colors.light.textMuted}
-              />
-            </Pressable>
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={Colors.light.textMuted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm password"
-              placeholderTextColor={Colors.light.textMuted}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showPassword}
-            />
-          </View>
+          <Text style={styles.flowHint}>
+            We'll send a verification link to your email where you can set your password.
+          </Text>
 
           <Pressable onPress={handleSignup} disabled={isLoading} style={styles.signupButton}>
             <LinearGradient
@@ -202,7 +164,12 @@ const styles = StyleSheet.create({
   },
   inputIcon: { marginRight: Spacing.sm },
   input: { flex: 1, fontSize: FontSize.base, color: Colors.light.text },
-  eyeButton: { padding: Spacing.xs },
+  flowHint: {
+    fontSize: FontSize.sm,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
   signupButton: {
     borderRadius: BorderRadius.md,
     overflow: 'hidden',

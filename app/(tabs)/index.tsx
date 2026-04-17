@@ -52,7 +52,7 @@ const features = [
     title: 'Pose\nStudio',
     description: 'Professional fashion poses',
     icon: 'camera-outline' as const,
-    route: '/(tabs)/style' as const,
+    route: '/(tabs)/style?tab=poses' as const,
     gradient: Gradients.poseCard,
     bgImage: require('@/assets/images/poses/model-turn.jpg'),
   },
@@ -66,18 +66,23 @@ const quickActions = [
 ];
 
 export default function HomeScreen() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const CARD_WIDTH = (width - Spacing.xl * 2 - Spacing.md) / 2;
   const [showProPopup, setShowProPopup] = useState(false);
+  const [proChecked, setProChecked] = useState(false);
 
   useEffect(() => {
-    if (user && !user.is_pro) {
+    refreshUser().finally(() => setProChecked(true));
+  }, []);
+
+  useEffect(() => {
+    if (proChecked && user && !user.is_pro) {
       const timer = setTimeout(() => setShowProPopup(true), 3000);
       return () => clearTimeout(timer);
     }
-  }, [user]);
+  }, [proChecked, user]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -240,7 +245,7 @@ export default function HomeScreen() {
         {/* Pose Previews */}
         <Animated.View entering={FadeInDown.delay(700)} style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Pose Studio</Text>
-          <Pressable onPress={() => router.push('/(tabs)/style')}>
+          <Pressable onPress={() => router.push('/(tabs)/style?tab=poses')}>
             <Text style={styles.seeAll}>See all</Text>
           </Pressable>
         </Animated.View>
@@ -258,7 +263,7 @@ export default function HomeScreen() {
           ].map((pose, i) => (
             <Animated.View key={i} entering={FadeInRight.delay(750 + i * 80)}>
               <Pressable
-                onPress={() => router.push('/(tabs)/style')}
+                onPress={() => router.push('/(tabs)/style?tab=poses')}
                 style={styles.poseCard}>
                 <Image source={pose.img} style={styles.poseImage} />
                 <LinearGradient

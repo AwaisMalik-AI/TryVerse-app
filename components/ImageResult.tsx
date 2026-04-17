@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert, useWindowDimensions, ActivityIndicator, Modal, ScrollView, StatusBar } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library';
 import { File, Paths } from 'expo-file-system';
@@ -86,13 +86,14 @@ function RichFeedbackText({ text }: { text: string }) {
 }
 
 export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: ImageResultProps) {
-  const { width } = useWindowDimensions();
+  const { width, height: screenHeight } = useWindowDimensions();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [loadingImage, setLoadingImage] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
 
   const parsedFeedback = useMemo(() => {
     if (!aiFeedback) return null;
@@ -174,7 +175,7 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
         </View>
       </View>
 
-      <View style={styles.imageWrapper}>
+      <Pressable onPress={() => localUri && setFullscreen(true)} style={styles.imageWrapper}>
         {loadingImage ? (
           <View style={[styles.image, styles.imageLoading]}>
             <ActivityIndicator size="large" color={Colors.light.gold} />
@@ -195,14 +196,44 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
             </Pressable>
           </View>
         ) : localUri ? (
-          <ExpoImage
-            source={{ uri: localUri }}
-            style={styles.image}
-            contentFit="contain"
-            transition={300}
-          />
+          <>
+            <ExpoImage
+              source={{ uri: localUri }}
+              style={styles.image}
+              contentFit="contain"
+              transition={300}
+            />
+            <View style={styles.zoomHint}>
+              <Ionicons name="expand-outline" size={16} color="#fff" />
+              <Text style={styles.zoomHintText}>Tap to zoom</Text>
+            </View>
+          </>
         ) : null}
-      </View>
+      </Pressable>
+
+      {fullscreen && localUri && (
+        <Modal visible animationType="fade" onRequestClose={() => setFullscreen(false)}>
+          <View style={styles.fullscreenContainer}>
+            <StatusBar barStyle="light-content" />
+            <ScrollView
+              contentContainerStyle={styles.fullscreenScrollContent}
+              maximumZoomScale={5}
+              minimumZoomScale={1}
+              bouncesZoom
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}>
+              <ExpoImage
+                source={{ uri: localUri }}
+                style={{ width, height: screenHeight }}
+                contentFit="contain"
+              />
+            </ScrollView>
+            <Pressable onPress={() => setFullscreen(false)} style={styles.fullscreenClose}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </Pressable>
+          </View>
+        </Modal>
+      )}
 
       <View style={styles.actions}>
         <Pressable onPress={saveToGallery} disabled={saving} style={styles.saveButton}>
@@ -353,6 +384,44 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   saveText: { fontSize: FontSize.base, fontWeight: '700', color: '#1a1a2e' },
+  zoomHint: {
+    position: 'absolute',
+    bottom: Spacing.sm,
+    right: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.sm,
+  },
+  zoomHintText: {
+    fontSize: FontSize.xs,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  fullscreenContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  fullscreenScrollContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
   hint: {
     fontSize: FontSize.xs,
     color: Colors.light.textMuted,
