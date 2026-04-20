@@ -268,7 +268,11 @@ export default function ProfileScreen() {
             onPress={async () => {
               if (user?.is_pro) {
                 try {
-                  const res = await apiFetch('/api/subscription/portal', { method: 'POST' });
+                  const res = await apiFetch('/api/subscription/portal', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ platform: 'mobile' }),
+                  });
                   if (res.ok) {
                     const data = await res.json();
                     if (data.portal_url) { await Linking.openURL(data.portal_url); return; }
@@ -277,7 +281,11 @@ export default function ProfileScreen() {
                 Alert.alert('Pro Plan', 'You are on the Pro Plan with unlimited try-ons, HD quality, and no watermarks.');
               } else {
                 try {
-                  const res = await apiFetch('/api/subscription/create-checkout', { method: 'POST' });
+                  const res = await apiFetch('/api/subscription/create-checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ platform: 'mobile' }),
+                  });
                   if (res.ok) {
                     const data = await res.json();
                     if (data.checkout_url) { await Linking.openURL(data.checkout_url); return; }

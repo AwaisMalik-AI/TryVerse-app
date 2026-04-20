@@ -63,10 +63,10 @@ export default function ShopScreen() {
     }
     const currentPage = reset ? 0 : page;
 
-    console.log('[SHOP] Loading store data...');
+    if (__DEV__) console.log('[SHOP] Loading store data...');
     const storeRes = await apiGet<Store[]>('/api/store/brands');
     const brandList = storeRes.ok && storeRes.data ? storeRes.data : [];
-    console.log('[SHOP] Brands loaded:', brandList.length);
+    if (__DEV__) console.log('[SHOP] Brands loaded:', brandList.length);
     setStores(brandList);
 
     // Only load products if a store is selected
@@ -88,7 +88,7 @@ export default function ShopScreen() {
       if (prodRes.data.length < PAGE_SIZE) setHasMore(false);
     }
 
-    console.log('[SHOP] Products loaded:', newProducts.length, 'page:', currentPage);
+    if (__DEV__) console.log('[SHOP] Products loaded:', newProducts.length, 'page:', currentPage);
 
     if (reset) {
       setProducts(newProducts);

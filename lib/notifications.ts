@@ -14,7 +14,7 @@ Notifications.setNotificationHandler({
 
 export async function registerForPushNotifications(): Promise<string | null> {
   if (!Device.isDevice) {
-    console.log('[NOTIF] Must use physical device for push notifications');
+    if (__DEV__) console.log('[NOTIF] Must use physical device for push notifications');
     return null;
   }
 
@@ -27,7 +27,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   if (finalStatus !== 'granted') {
-    console.log('[NOTIF] Permission not granted');
+    if (__DEV__) console.log('[NOTIF] Permission not granted');
     return null;
   }
 
@@ -42,12 +42,12 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
   try {
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: undefined,
+      projectId: 'c5264b24-7574-4397-8c06-74f6b631e88c',
     });
-    console.log('[NOTIF] Push token:', tokenData.data);
+    if (__DEV__) console.log('[NOTIF] Push token:', tokenData.data);
     return tokenData.data;
   } catch (e) {
-    console.log('[NOTIF] Token error:', e);
+    if (__DEV__) console.log('[NOTIF] Token error:', e);
     return null;
   }
 }

@@ -150,7 +150,7 @@ export default function StyleScreen() {
     const res = await apiGet<PosePreset[]>('/api/pose/presets');
     if (res.ok && res.data) {
       setPosePresets(res.data);
-      console.log('[POSE] Presets loaded:', res.data.length);
+      if (__DEV__) console.log('[POSE] Presets loaded:', res.data.length);
     }
     setLoadingPresets(false);
   }, []);
@@ -210,26 +210,26 @@ export default function StyleScreen() {
 
   const ensureConversation = async (): Promise<number | null> => {
     if (conversationId) return conversationId;
-    console.log('[STYLIST] Creating conversation: trying start-from-tryon');
+    if (__DEV__) console.log('[STYLIST] Creating conversation: trying start-from-tryon');
     try {
       const response = await apiFetch('/api/stylist/start-from-tryon', { method: 'POST' });
       if (response.ok) {
         const data = await response.json();
-        console.log('[STYLIST] Conversation created via start-from-tryon', { id: data.id });
+        if (__DEV__) console.log('[STYLIST] Conversation created via start-from-tryon', { id: data.id });
         setConversationId(data.id);
         return data.id;
       }
-      console.log('[STYLIST] start-from-tryon failed, trying upload-photo');
+      if (__DEV__) console.log('[STYLIST] start-from-tryon failed, trying upload-photo');
       const uploadRes = await apiFetch('/api/stylist/upload-photo', { method: 'POST' });
       if (uploadRes.ok) {
         const data = await uploadRes.json();
-        console.log('[STYLIST] Conversation created via upload-photo', { id: data.id });
+        if (__DEV__) console.log('[STYLIST] Conversation created via upload-photo', { id: data.id });
         setConversationId(data.id);
         return data.id;
       }
-      console.log('[STYLIST] No conversation created', { startStatus: response.status, uploadStatus: uploadRes.status });
+      if (__DEV__) console.log('[STYLIST] No conversation created', { startStatus: response.status, uploadStatus: uploadRes.status });
     } catch (e) {
-      console.log('[STYLIST] ensureConversation error', e);
+      if (__DEV__) console.log('[STYLIST] ensureConversation error', e);
     }
     return null;
   };
@@ -246,13 +246,13 @@ export default function StyleScreen() {
       if (!convId) {
         const noConvMessage =
           'I could not start a session. Please tap "Choose Photo" to upload your photo again, or use a photo from Virtual Try-On.';
-        console.log('[STYLIST] No conversation available, showing message to user');
+        if (__DEV__) console.log('[STYLIST] No conversation available, showing message to user');
         setMessages((prev) => [...prev, { role: 'ai', text: noConvMessage }]);
         setIsSending(false);
         return;
       }
 
-      console.log('[STYLIST] Sending message', { conversationId: convId, message: userMsg });
+      if (__DEV__) console.log('[STYLIST] Sending message', { conversationId: convId, message: userMsg });
       const response = await apiFetch('/api/stylist/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -261,15 +261,15 @@ export default function StyleScreen() {
       if (response.ok) {
         const data = await response.json();
         const botText = data.bot_message?.content || data.response || data.message || 'No response';
-        console.log('[STYLIST] Response received', { hasBotMessage: !!data.bot_message });
+        if (__DEV__) console.log('[STYLIST] Response received', { hasBotMessage: !!data.bot_message });
         setMessages((prev) => [...prev, { role: 'ai', text: botText }]);
       } else {
         const err = await response.json().catch(() => null);
-        console.log('[STYLIST] Chat error', { status: response.status, err });
+        if (__DEV__) console.log('[STYLIST] Chat error', { status: response.status, err });
         setMessages((prev) => [...prev, { role: 'ai', text: err?.detail || 'Sorry, I could not process that.' }]);
       }
     } catch (e) {
-      console.log('[STYLIST] Chat connection error', e);
+      if (__DEV__) console.log('[STYLIST] Chat connection error', e);
       setMessages((prev) => [...prev, { role: 'ai', text: 'Connection error. Please try again.' }]);
     }
     setIsSending(false);
@@ -309,7 +309,7 @@ export default function StyleScreen() {
     }
     const presetIdsArray = Array.from(selectedPresetIds);
     const endpoint = `${API_URL}/api/pose/generate-from-presets`;
-    console.log('[POSE] Generation started', { endpoint, presetIds: presetIdsArray });
+    if (__DEV__) console.log('[POSE] Generation started', { endpoint, presetIds: presetIdsArray });
     setIsGeneratingPose(true);
     const res = await apiUpload('/api/pose/generate-from-presets', posePhotoUri, 'file', {
       preset_ids: JSON.stringify(presetIdsArray),

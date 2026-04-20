@@ -16,7 +16,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { sendLocalNotification } from '@/lib/notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
-import { apiGet, apiFetch, getToken, API_URL } from '@/lib/api';
+import { apiGet, apiFetch, apiUpload, API_URL } from '@/lib/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GeneratingOverlay } from '@/components/GeneratingOverlay';
 import { ImageResult } from '@/components/ImageResult';
@@ -92,33 +92,20 @@ export default function StoreTryOnScreen() {
   };
 
   const uploadSelfie = async (uri: string) => {
-    const endpoint = `${API_URL}/api/store/upload-user-image?body_type=${bodyType}`;
-    console.log('[UPLOAD] Store Try-On: upload started', { endpoint });
+    if (__DEV__) console.log('[UPLOAD] Store Try-On: upload started');
     setIsUploading(true);
-    const token = await getToken();
-    const formData = new FormData();
-    const filename = uri.split('/').pop() || 'photo.jpg';
-    const ext = filename.split('.').pop() || 'jpg';
-    formData.append('file', { uri, name: filename, type: `image/${ext}` } as unknown as Blob);
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[UPLOAD] Store Try-On: upload completed', { endpoint, sessionId: data.session_id });
-        setSessionId(data.session_id);
-      } else {
-        const err = await response.json().catch(() => null);
-        console.log('[UPLOAD] Store Try-On: upload failed', { endpoint, status: response.status, err });
-        Alert.alert('Upload Failed', err?.detail || 'Could not upload image');
-      }
-    } catch (e) {
-      console.log('[UPLOAD] Store Try-On: upload error', { endpoint, error: e });
-      Alert.alert('Upload Failed', 'Connection error');
+    const res = await apiUpload(
+      `/api/store/upload-user-image?body_type=${bodyType}`,
+      uri,
+      'file',
+    );
+    if (res.ok && res.data) {
+      const data = res.data as { session_id?: number };
+      if (__DEV__) console.log('[UPLOAD] Store Try-On: upload completed', { sessionId: data.session_id });
+      setSessionId(data.session_id ?? null);
+    } else {
+      if (__DEV__) console.log('[UPLOAD] Store Try-On: upload failed', { error: res.error });
+      Alert.alert('Upload Failed', res.error || 'Could not upload image');
     }
     setIsUploading(false);
   };
@@ -126,7 +113,7 @@ export default function StoreTryOnScreen() {
   const handleGenerate = async () => {
     if (!sessionId || !productId) return;
     const endpoint = `${API_URL}/api/store/try-on`;
-    console.log('[GENERATION] Store Try-On: generation started', { endpoint, productId, sessionId });
+    if (__DEV__) console.log('[GENERATION] Store Try-On: generation started', { endpoint, productId, sessionId });
     setIsGenerating(true);
 
     const MAX_RETRIES = 4;
@@ -143,12 +130,12 @@ export default function StoreTryOnScreen() {
             store_id: storeId ? parseInt(storeId) : undefined,
           }),
         });
-        console.log('[GENERATION] Store Try-On: response received', { status: response.status, ok: response.ok, attempt });
+        if (__DEV__) console.log('[GENERATION] Store Try-On: response received', { status: response.status, ok: response.ok, attempt });
 
         if (response.ok) {
           const data = await response.json();
           if (data.output_file_id) {
-            console.log('[GENERATION] Store Try-On: generation completed', { outputFileId: data.output_file_id });
+            if (__DEV__) console.log('[GENERATION] Store Try-On: generation completed', { outputFileId: data.output_file_id });
             setResultImageUrl(`${API_URL}/api/store/download/${data.output_file_id}`);
             setAiFeedback(data.ai_feedback || null);
             sendLocalNotification('Image Ready!', 'Your store try-on is ready. Open the app to view and save it.');
@@ -162,19 +149,19 @@ export default function StoreTryOnScreen() {
           }
           break;
         } else if (response.status === 409 && attempt < MAX_RETRIES) {
-          console.log(`[GENERATION] Store Try-On: 409 conflict, retrying in ${RETRY_DELAY / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          if (__DEV__) console.log(`[GENERATION] Store Try-On: 409 conflict, retrying in ${RETRY_DELAY / 1000}s (attempt ${attempt + 1}/${MAX_RETRIES})`);
           await new Promise((r) => setTimeout(r, RETRY_DELAY));
           continue;
         } else {
           const err = await response.json().catch(() => null);
-          console.log('[GENERATION] Store Try-On: generation failed', { endpoint, status: response.status, err });
+          if (__DEV__) console.log('[GENERATION] Store Try-On: generation failed', { endpoint, status: response.status, err });
           Alert.alert('Error', err?.detail || 'Generation failed');
           break;
         }
       } catch (e) {
-        console.log('[GENERATION] Store Try-On: generation error', { endpoint, error: e, attempt });
+        if (__DEV__) console.log('[GENERATION] Store Try-On: generation error', { endpoint, error: e, attempt });
         if (attempt < MAX_RETRIES) {
-          console.log(`[GENERATION] Retrying after connection error in ${RETRY_DELAY / 1000}s`);
+          if (__DEV__) console.log(`[GENERATION] Retrying after connection error in ${RETRY_DELAY / 1000}s`);
           await new Promise((r) => setTimeout(r, RETRY_DELAY));
           continue;
         }

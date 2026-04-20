@@ -71,15 +71,15 @@ export default function TryOnScreen() {
 
   const uploadSelfie = async (uri: string) => {
     const endpoint = `${API_URL}/api/tryon/upload-user-photo`;
-    console.log('[UPLOAD] Virtual Try-On: upload started', { endpoint });
+    if (__DEV__) console.log('[UPLOAD] Virtual Try-On: upload started', { endpoint });
     setIsUploading(true);
     const res = await apiUpload('/api/tryon/upload-user-photo', uri, 'file');
     setIsUploading(false);
     if (res.ok && res.data) {
-      console.log('[UPLOAD] Virtual Try-On: upload completed', { endpoint });
+      if (__DEV__) console.log('[UPLOAD] Virtual Try-On: upload completed', { endpoint });
       setFileId('uploaded');
     } else {
-      console.log('[UPLOAD] Virtual Try-On: upload failed', { endpoint, error: res.error });
+      if (__DEV__) console.log('[UPLOAD] Virtual Try-On: upload failed', { endpoint, error: res.error });
       Alert.alert('Upload Failed', (res.error as string) || 'Could not upload image');
     }
   };
@@ -98,7 +98,7 @@ export default function TryOnScreen() {
     setResultImageUrl(null);
 
     const endpoint = `${API_URL}/api/tryon/fetch-and-tryon`;
-    console.log('[GENERATION] Virtual Try-On: generation started', { endpoint, productUrl: productUrl.trim() });
+    if (__DEV__) console.log('[GENERATION] Virtual Try-On: generation started', { endpoint, productUrl: productUrl.trim() });
 
     try {
       const response = await apiFetch('/api/tryon/fetch-and-tryon', {
@@ -107,12 +107,12 @@ export default function TryOnScreen() {
         body: JSON.stringify({ url: productUrl.trim() }),
       });
 
-      console.log('[GENERATION] Virtual Try-On: response received', { status: response.status, ok: response.ok });
+      if (__DEV__) console.log('[GENERATION] Virtual Try-On: response received', { status: response.status, ok: response.ok });
 
       if (response.ok) {
         const data = await response.json();
         const resultUrl = data.result_image_url || data.result_photo_url;
-        console.log('[GENERATION] Virtual Try-On: generation completed', {
+        if (__DEV__) console.log('[GENERATION] Virtual Try-On: generation completed', {
           hasResult: !!resultUrl,
           generationSuccess: data.generation_success,
         });
@@ -135,11 +135,11 @@ export default function TryOnScreen() {
         }
       } else {
         const err = await response.json().catch(() => null);
-        console.log('[GENERATION] Virtual Try-On: generation failed', { endpoint, status: response.status, err });
+        if (__DEV__) console.log('[GENERATION] Virtual Try-On: generation failed', { endpoint, status: response.status, err });
         Alert.alert('Generation Failed', err?.detail || 'Could not generate try-on');
       }
     } catch (e) {
-      console.log('[GENERATION] Virtual Try-On: generation error', { endpoint, error: e });
+      if (__DEV__) console.log('[GENERATION] Virtual Try-On: generation error', { endpoint, error: e });
       Alert.alert('Error', 'Connection failed');
     }
     setIsGenerating(false);

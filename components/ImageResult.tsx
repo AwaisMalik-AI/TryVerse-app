@@ -119,7 +119,7 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
           setLoadingImage(false);
         }
       } catch (error) {
-        console.log('[ImageResult] Failed to load image:', error);
+        if (__DEV__) console.log('[ImageResult] Failed to load image:', error);
         if (!cancelled) {
           setLoadError(true);
           setLoadingImage(false);
@@ -158,7 +158,7 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
       setSaved(true);
       Alert.alert('Saved!', 'Image has been saved to your gallery.');
     } catch (error) {
-      console.log('[SAVE] Error saving to gallery:', error);
+      if (__DEV__) console.log('[SAVE] Error saving to gallery:', error);
       Alert.alert('Error', 'Could not save the image. Please try again.');
     } finally {
       setSaving(false);

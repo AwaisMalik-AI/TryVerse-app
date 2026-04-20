@@ -56,14 +56,14 @@ export async function apiFetch(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  console.log(`[API] ${method} ${url}`);
+  if (__DEV__) console.log(`[API] ${method} ${url}`);
 
   const response = await fetch(url, {
     ...options,
     headers,
   });
 
-  console.log(`[API] ${method} ${url} -> status ${response.status}`);
+  if (__DEV__) console.log(`[API] ${method} ${url} -> status ${response.status}`);
 
   if (response.status === 401) {
     await clearSession();
@@ -85,7 +85,7 @@ export async function apiPost<T = unknown>(
       body: JSON.stringify(data),
     });
 
-    console.log(`[API] POST ${url} -> status ${response.status}`);
+    if (__DEV__) console.log(`[API] POST ${url} -> status ${response.status}`);
 
     if (response.ok) {
       const responseData = await response.json();
@@ -114,10 +114,10 @@ export async function apiGet<T = unknown>(
     if (response.ok) {
       const responseData = await response.json();
       const dataLength = Array.isArray(responseData) ? responseData.length : (typeof responseData === 'object' ? Object.keys(responseData).length : 0);
-      console.log(`[API] GET ${url} -> status ${response.status}, data length: ${dataLength}`);
+      if (__DEV__) console.log(`[API] GET ${url} -> status ${response.status}, data length: ${dataLength}`);
       return { ok: true, data: responseData as T, status: response.status };
     } else {
-      console.log(`[API] GET ${url} -> status ${response.status} (error)`);
+      if (__DEV__) console.log(`[API] GET ${url} -> status ${response.status} (error)`);
       let errorDetail = `Error ${response.status}`;
       try {
         const errData = await response.json();
@@ -160,7 +160,7 @@ export async function apiUpload(
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const url = `${API_URL}${path}`;
-    console.log(`[UPLOAD] POST ${url} file: ${filename}`);
+    if (__DEV__) console.log(`[UPLOAD] POST ${url} file: ${filename}`);
 
     const response = await fetch(url, {
       method: 'POST',
@@ -168,7 +168,7 @@ export async function apiUpload(
       body: formData,
     });
 
-    console.log(`[UPLOAD] POST ${url} -> status ${response.status}`);
+    if (__DEV__) console.log(`[UPLOAD] POST ${url} -> status ${response.status}`);
 
     if (response.status === 401) {
       await clearSession();

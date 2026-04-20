@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,19 +16,64 @@ import { useRouter, Link } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/lib/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const [_request, googleResponse, promptAsync] = Google.useAuthRequest({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const idToken = googleResponse.authentication?.idToken;
+      if (idToken) {
+        handleGoogleToken(idToken);
+      } else {
+        setIsGoogleLoading(false);
+        Alert.alert('Google Sign-In', 'Could not get authentication token. Please try again.');
+      }
+    } else if (googleResponse?.type === 'error') {
+      setIsGoogleLoading(false);
+      Alert.alert('Google Sign-In Failed', 'Authentication was cancelled or failed.');
+    }
+  }, [googleResponse]);
+
+  const handleGoogleToken = async (idToken: string) => {
+    const result = await googleLogin(idToken);
+    setIsGoogleLoading(false);
+    if (result.ok) {
+      router.replace('/(tabs)');
+    } else {
+      Alert.alert('Google Sign-In Failed', result.error || 'Could not sign in with Google');
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    try {
+      await promptAsync();
+    } catch {
+      setIsGoogleLoading(false);
+      Alert.alert('Error', 'Could not open Google Sign-In');
+    }
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -131,9 +176,18 @@ export default function LoginScreen() {
 
         {/* Google login */}
         <Animated.View entering={FadeInDown.delay(350)}>
-          <Pressable style={styles.googleButton}>
-            <Ionicons name="logo-google" size={20} color={Colors.light.charcoal} />
-            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          <Pressable
+            style={styles.googleButton}
+            onPress={handleGoogleLogin}
+            disabled={isGoogleLoading || isLoading}>
+            {isGoogleLoading ? (
+              <ActivityIndicator color={Colors.light.charcoal} size="small" />
+            ) : (
+              <>
+                <Ionicons name="logo-google" size={20} color={Colors.light.charcoal} />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </>
+            )}
           </Pressable>
         </Animated.View>
 

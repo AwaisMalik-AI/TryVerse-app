@@ -27,7 +27,11 @@ export function ProUpgradeModal({ visible, onClose, variant = 'full' }: ProUpgra
   const handleUpgrade = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/subscription/create-checkout', { method: 'POST' });
+      const res = await apiFetch('/api/subscription/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: 'mobile' }),
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.checkout_url) {

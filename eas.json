@@ -20,7 +20,9 @@
       },
       "autoIncrement": false,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://tryverse-production.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://tryverse-production.up.railway.app",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "72321708190-6b9eviu49irm7jb4qa32hpqoai4nbuh3.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "72321708190-t3p28c5in7hi37s3rlt0ob2e5mditlni.apps.googleusercontent.com"
       }
     }
   },
