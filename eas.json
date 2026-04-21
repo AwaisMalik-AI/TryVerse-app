@@ -30,6 +30,10 @@
     "production": {
       "android": {
         "track": "internal"
+      },
+      "ios": {
+        "appleId": "maaz@xvantech.com",
+        "appleTeamId": "S93DBG5H2F"
       }
     }
   }
