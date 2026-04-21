@@ -33,7 +33,11 @@
       },
       "ios": {
         "appleId": "maaz@xvantech.com",
-        "appleTeamId": "S93DBG5H2F"
+        "appleTeamId": "S93DBG5H2F",
+        "ascAppId": "6762756859",
+        "ascApiKeyPath": "./AuthKey_C4DA7AVUB8.p8",
+        "ascApiKeyId": "C4DA7AVUB8",
+        "ascApiKeyIssuerId": "80c2abeb-07e2-4b71-bad3-3af033115093"
       }
     }
   }
