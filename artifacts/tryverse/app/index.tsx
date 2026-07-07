@@ -1,48 +1,31 @@
-import { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useAuth } from '@/lib/auth';
-import { theme } from '@/constants/theme';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { Colors } from '@/constants/theme';
 
-export default function IndexScreen() {
-  const router = useRouter();
+export default function Index() {
   const { isAuthenticated, isLoading } = useAuth();
 
-  useEffect(() => {
-    if (!isLoading) {
-      if (isAuthenticated) {
-        router.replace('/(tabs)');
-      } else {
-        router.replace('/(auth)/onboarding');
-      }
-    }
-  }, [isLoading, isAuthenticated]);
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
 
-  return (
-    <View style={styles.container}>
-      <Image
-        source={require('@/assets/images/tryverse-logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      <ActivityIndicator size="large" color={theme.gold} style={styles.loader} />
-    </View>
-  );
+  if (isAuthenticated) {
+    return <Redirect href="/(tabs)/home" />;
+  }
+
+  return <Redirect href="/welcome" />;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.background,
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    marginBottom: 32,
-  },
-  loader: {
-    marginTop: 16,
-  },
+  }
 });

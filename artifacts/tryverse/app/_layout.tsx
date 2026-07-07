@@ -1,86 +1,79 @@
 import { useEffect } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import { SplashScreen, Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import {
-  registerForPushNotifications,
-  scheduleReEngagementNotification,
-  scheduleCreditResetNotification,
-  registerBackgroundTask,
-} from '@/lib/notifications';
-import { apiFetch } from '@/lib/api';
-import { theme } from '@/constants/theme';
-import 'react-native-reanimated';
+import { 
+  Montserrat_400Regular, 
+  Montserrat_500Medium, 
+  Montserrat_600SemiBold, 
+  Montserrat_700Bold 
+} from '@expo-google-fonts/montserrat';
 
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, onSessionExpired } = useAuth();
+SplashScreen.preventAutoHideAsync();
+
+function RootLayoutNav() {
+  const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     if (isLoading) return;
-    const inAuthGroup = segments[0] === '(auth)';
-    const isRoot = (segments.length as number) === 0 || segments[0] === undefined;
-    if (!isAuthenticated && !inAuthGroup && !isRoot) {
-      router.replace('/(auth)/login');
+
+    const protectedRoute =
+      segments[0] === '(tabs)' ||
+      segments[0] === 'try-on-result' ||
+      segments[0] === 'store' ||
+      segments[0] === 'profile' ||
+      segments[0] === 'settings';
+    const authRoute = segments[0] === 'login' || segments[0] === 'signup';
+
+    if (!isAuthenticated && protectedRoute) {
+      router.replace('/welcome');
+    } else if (isAuthenticated && authRoute) {
+      router.replace('/(tabs)/home');
     }
   }, [isAuthenticated, isLoading, segments]);
 
-  useEffect(() => {
-    const unsubscribe = onSessionExpired(() => {
-      router.replace('/(auth)/login');
-    });
-    return unsubscribe;
-  }, [onSessionExpired, router]);
-
-  return <>{children}</>;
-}
-
-function InitEffects() {
-  useEffect(() => {
-    registerForPushNotifications().then((token) => {
-      if (token) {
-        apiFetch('/api/notifications/register-push-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, platform: 'expo' }),
-        }).catch(() => {});
-      }
-    }).catch(() => {});
-    registerBackgroundTask().catch(() => {});
-    scheduleReEngagementNotification().catch(() => {});
-    scheduleCreditResetNotification().catch(() => {});
-  }, []);
-  return null;
+  return (
+    <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="welcome" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="signup" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="try-on-result" />
+      <Stack.Screen name="store/product/[id]" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="settings" />
+    </Stack>
+  );
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    'ClashDisplay-Regular': require('../assets/fonts/ClashDisplay-Regular.ttf'),
+    'ClashDisplay-Medium': require('../assets/fonts/ClashDisplay-Medium.ttf'),
+    'ClashDisplay-Semibold': require('../assets/fonts/ClashDisplay-Semibold.ttf'),
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <InitEffects />
-        <AuthGuard>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            animation: 'slide_from_right',
-            contentStyle: { backgroundColor: theme.background },
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="store-tryon" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="privacy-policy" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="contact-us" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="about" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="history" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="video-studio" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-        </Stack>
-        </AuthGuard>
-        <StatusBar style="light" />
-      </AuthProvider>
-    </ErrorBoundary>
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
   );
 }
