@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
+import { theme, Gradients, Spacing, FontSize, BorderRadius } from '@/constants/theme';
 
 const SECTIONS = [
   {
@@ -52,17 +52,17 @@ export default function PrivacyPolicyScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.light.charcoal} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
 
         <Animated.View entering={FadeInDown.delay(100)}>
           <LinearGradient
-            colors={[Colors.light.charcoal, '#2d2d3f']}
+            colors={Gradients.charcoal}
             style={styles.headerGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}>
             <View style={styles.headerIconBg}>
-              <Ionicons name="shield-checkmark" size={48} color={Colors.light.gold} />
+              <Ionicons name="shield-checkmark" size={48} color={theme.gold} />
             </View>
             <Text style={styles.headerTitle}>Privacy Policy</Text>
             <Text style={styles.headerSubtitle}>Your data, your control</Text>
@@ -77,7 +77,7 @@ export default function PrivacyPolicyScreen() {
               style={styles.sectionCard}>
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionIconBg}>
-                  <Ionicons name={section.icon} size={22} color={Colors.light.gold} />
+                  <Ionicons name={section.icon} size={22} color={theme.gold} />
                 </View>
                 <Text style={styles.sectionTitle}>{section.title}</Text>
               </View>
@@ -93,13 +93,13 @@ export default function PrivacyPolicyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.background },
+  container: { flex: 1, backgroundColor: theme.background },
   scrollContent: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.base },
   backButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: theme.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.lg,
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.light.gold + '25',
+    backgroundColor: theme.goldMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.base,
@@ -123,20 +123,20 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FontSize['2xl'],
     fontWeight: '800',
-    color: Colors.light.ivory,
+    color: theme.text,
     marginBottom: Spacing.xs,
   },
   headerSubtitle: {
     fontSize: FontSize.sm,
-    color: Colors.light.textMuted,
+    color: theme.textMuted,
   },
   sectionsContainer: { gap: Spacing.md },
   sectionCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: theme.card,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     borderWidth: 1,
-    borderColor: Colors.light.borderLight,
+    borderColor: theme.borderLight,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -148,19 +148,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.light.gold + '15',
+    backgroundColor: theme.goldMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sectionTitle: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.light.charcoal,
+    color: theme.text,
     flex: 1,
   },
   sectionContent: {
     fontSize: FontSize.sm,
-    color: Colors.light.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 22,
     paddingLeft: 56,
   },

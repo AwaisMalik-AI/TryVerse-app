@@ -1,9 +1,9 @@
 import { View, Image, Text, StyleSheet, ViewStyle } from 'react-native';
+import { theme } from '@/constants/theme';
 
 interface LogoProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   showText?: boolean;
-  light?: boolean;
   style?: ViewStyle;
 }
 
@@ -11,9 +11,10 @@ const sizeMap = {
   sm: { mark: 28, text: 16, gap: 5 },
   md: { mark: 34, text: 20, gap: 6 },
   lg: { mark: 44, text: 28, gap: 8 },
+  xl: { mark: 64, text: 36, gap: 10 },
 };
 
-export function Logo({ size = 'md', showText = true, light = false, style }: LogoProps) {
+export function Logo({ size = 'md', showText = true, style }: LogoProps) {
   const s = sizeMap[size];
 
   return (
@@ -32,7 +33,7 @@ export function Logo({ size = 'md', showText = true, light = false, style }: Log
       {showText && (
         <Text style={[styles.brandText, { fontSize: s.text }]}>
           <Text style={styles.brandGold}>Try</Text>
-          <Text style={[styles.brandDark, light && styles.brandLight]}>Verse</Text>
+          <Text style={styles.brandLight}>Verse</Text>
         </Text>
       )}
     </View>
@@ -46,23 +47,15 @@ const styles = StyleSheet.create({
   },
   logoImage: {
     resizeMode: 'cover',
-    shadowColor: '#c9186a',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6,
   },
   brandText: {
     fontWeight: '800',
     letterSpacing: -0.3,
   },
   brandGold: {
-    color: '#c9a96e',
-  },
-  brandDark: {
-    color: '#1a1a2e',
+    color: theme.gold,
   },
   brandLight: {
-    color: '#ffffff',
+    color: theme.text,
   },
 });

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   Pressable,
   KeyboardAvoidingView,
@@ -12,13 +11,16 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
+import { theme, Gradients, Spacing, FontSize, BorderRadius, Shadows } from '@/constants/theme';
+import { Input } from '@/components/ui/Input';
 import { apiPost } from '@/lib/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -41,17 +43,30 @@ export default function ForgotPasswordScreen() {
   if (sent) {
     return (
       <View style={styles.container}>
-        <View style={styles.centerContent}>
-          <Animated.View entering={FadeInDown} style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={80} color={Colors.light.gold} />
+        <View style={[styles.centerContent, { paddingTop: insets.top }]}>
+          <Animated.View entering={FadeIn.delay(100)} style={styles.successIconWrapper}>
+            <View style={styles.successRing}>
+              <Ionicons name="checkmark-circle" size={64} color={theme.gold} />
+            </View>
           </Animated.View>
-          <Text style={styles.successTitle}>Check Your Email</Text>
-          <Text style={styles.successDesc}>
-            We've sent a password reset link to {email}
-          </Text>
-          <Pressable onPress={() => router.back()} style={styles.backToLogin}>
-            <Text style={styles.backToLoginText}>Back to Sign In</Text>
-          </Pressable>
+          <Animated.View entering={FadeInDown.delay(200)}>
+            <Text style={styles.successTitle}>Check Your Email</Text>
+          </Animated.View>
+          <Animated.View entering={FadeInDown.delay(300)}>
+            <Text style={styles.successDesc}>
+              We've sent a password reset link to{'\n'}
+              <Text style={styles.emailHighlight}>{email}</Text>
+            </Text>
+          </Animated.View>
+          <Animated.View entering={FadeInDown.delay(400)}>
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [styles.backToLoginBtn, { opacity: pressed ? 0.8 : 1 }]}
+            >
+              <Ionicons name="arrow-back" size={18} color={theme.gold} />
+              <Text style={styles.backToLoginText}>Back to Sign In</Text>
+            </Pressable>
+          </Animated.View>
         </View>
       </View>
     );
@@ -60,46 +75,61 @@ export default function ForgotPasswordScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={styles.content}>
-        <Animated.View entering={FadeInDown.delay(50)}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={Colors.light.charcoal} />
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={[styles.content, { paddingTop: insets.top + 16 }]}>
+        <Animated.View entering={FadeInDown.delay(50).springify()}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Ionicons name="arrow-back" size={22} color={theme.text} />
           </Pressable>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
+          <View style={styles.iconBadge}>
+            <Ionicons name="key-outline" size={28} color={theme.gold} />
+          </View>
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>
-            Enter your email and we'll send you a link to reset your password
+            Enter your email address and we'll send you a link to reset your password
           </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(200)}>
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color={Colors.light.textMuted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email address"
-              placeholderTextColor={Colors.light.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+        <Animated.View entering={FadeInDown.delay(200).springify()}>
+          <Input
+            icon="mail-outline"
+            label="Email Address"
+            placeholder="your@email.com"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
 
-          <Pressable onPress={handleReset} disabled={isLoading} style={styles.resetButton}>
+          <Pressable
+            onPress={handleReset}
+            disabled={isLoading}
+            style={({ pressed }) => [
+              styles.resetButton,
+              { opacity: pressed ? 0.85 : isLoading ? 0.6 : 1 },
+            ]}
+          >
             <LinearGradient
-              colors={['#c9a96e', '#e8c98a']}
+              colors={Gradients.gold}
               style={styles.resetButtonGradient}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}>
+              end={{ x: 1, y: 0 }}
+            >
               {isLoading ? (
-                <ActivityIndicator color="#1a1a2e" />
+                <ActivityIndicator color={theme.textInverse} />
               ) : (
-                <Text style={styles.resetButtonText}>Send Reset Link</Text>
+                <>
+                  <Ionicons name="send-outline" size={18} color={theme.textInverse} />
+                  <Text style={styles.resetButtonText}>Send Reset Link</Text>
+                </>
               )}
             </LinearGradient>
           </Pressable>
@@ -110,11 +140,13 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
   content: {
     flex: 1,
     paddingHorizontal: Spacing.xl,
-    paddingTop: 60,
   },
   centerContent: {
     flex: 1,
@@ -126,41 +158,97 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing['2xl'],
   },
-  header: { marginBottom: Spacing['2xl'] },
-  title: { fontSize: FontSize['2xl'], fontWeight: '800', color: Colors.light.charcoal },
-  subtitle: { fontSize: FontSize.base, color: Colors.light.textSecondary, marginTop: Spacing.sm, lineHeight: 22 },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  header: {
+    marginBottom: Spacing['2xl'],
+  },
+  iconBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.goldMuted,
     borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.light.surfaceSecondary,
-    paddingHorizontal: Spacing.base,
-    height: 54,
+    borderColor: theme.goldBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.base,
   },
-  inputIcon: { marginRight: Spacing.sm },
-  input: { flex: 1, fontSize: FontSize.base, color: Colors.light.text },
+  title: {
+    fontSize: FontSize['2xl'],
+    fontWeight: '800',
+    color: theme.text,
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: FontSize.base,
+    color: theme.textSecondary,
+    marginTop: Spacing.sm,
+    lineHeight: 22,
+  },
   resetButton: {
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
-    marginTop: Spacing.lg,
-    shadowColor: '#c9a96e',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    marginTop: Spacing.sm,
+    ...Shadows.gold,
   },
-  resetButtonGradient: { paddingVertical: Spacing.base, alignItems: 'center' },
-  resetButtonText: { fontSize: FontSize.md, fontWeight: '700', color: Colors.light.charcoal },
-  successIcon: { marginBottom: Spacing.xl },
-  successTitle: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.light.charcoal, marginBottom: Spacing.sm },
-  successDesc: { fontSize: FontSize.base, color: Colors.light.textSecondary, textAlign: 'center', lineHeight: 22 },
-  backToLogin: { marginTop: Spacing['2xl'] },
-  backToLoginText: { fontSize: FontSize.base, color: Colors.light.gold, fontWeight: '700' },
+  resetButtonGradient: {
+    flexDirection: 'row',
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  resetButtonText: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: theme.textInverse,
+  },
+  successIconWrapper: {
+    marginBottom: Spacing.xl,
+  },
+  successRing: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: theme.goldMuted,
+    borderWidth: 2,
+    borderColor: theme.goldBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: '700',
+    color: theme.text,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  successDesc: {
+    fontSize: FontSize.base,
+    color: theme.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  emailHighlight: {
+    color: theme.gold,
+    fontWeight: '600',
+  },
+  backToLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing['2xl'],
+    paddingVertical: Spacing.sm,
+  },
+  backToLoginText: {
+    fontSize: FontSize.base,
+    color: theme.gold,
+    fontWeight: '700',
+  },
 });

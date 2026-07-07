@@ -1,42 +1,39 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Pressable,
-  TextInput,
   Image,
   ScrollView,
   ActivityIndicator,
   Alert,
-  useWindowDimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { sendLocalNotification } from '@/lib/notifications';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius, TAB_BAR_SPACER } from '@/constants/theme';
+import { theme, Gradients, Spacing, FontSize, BorderRadius, TAB_BAR_SPACER, Shadows } from '@/constants/theme';
+import { Input } from '@/components/ui/Input';
+import { GoldButton } from '@/components/ui/GoldButton';
 import { apiUpload, apiFetch, API_URL } from '@/lib/api';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { GeneratingOverlay } from '@/components/GeneratingOverlay';
 import { ImageResult } from '@/components/ImageResult';
-import { ProUpgradeModal } from '@/components/ProUpgradeModal';
 import { useAuth } from '@/lib/auth';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TryOnScreen() {
   const { user } = useAuth();
-  const { width } = useWindowDimensions();
-  const [showProPopup, setShowProPopup] = useState(false);
+  const insets = useSafeAreaInsets();
   const [selfieUri, setSelfieUri] = useState<string | null>(null);
   const [productUrl, setProductUrl] = useState('');
-  const [bodyType, setBodyType] = useState<'full_body' | 'upper_body'>('full_body');
   const [isUploading, setIsUploading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
 
-  const pickImage = async (useCamera: boolean) => {
+  const pickImage = useCallback(async (useCamera: boolean) => {
     let result: ImagePicker.ImagePickerResult;
 
     if (useCamera) {
@@ -45,41 +42,32 @@ export default function TryOnScreen() {
         Alert.alert('Permission Required', 'Camera access is needed to take a selfie.');
         return;
       }
-      result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-      });
+      result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
         Alert.alert('Permission Required', 'Gallery access is needed to select a photo.');
         return;
       }
-      result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-      });
+      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
     }
 
     if (!result.canceled && result.assets[0]) {
       const uri = result.assets[0].uri;
       setSelfieUri(uri);
       setResultImageUrl(null);
+      setAiFeedback(null);
       uploadSelfie(uri);
     }
-  };
+  }, []);
 
   const uploadSelfie = async (uri: string) => {
-    const endpoint = `${API_URL}/api/tryon/upload-user-photo`;
-    if (__DEV__) console.log('[UPLOAD] Virtual Try-On: upload started', { endpoint });
     setIsUploading(true);
     const res = await apiUpload('/api/tryon/upload-user-photo', uri, 'file');
     setIsUploading(false);
     if (res.ok && res.data) {
-      if (__DEV__) console.log('[UPLOAD] Virtual Try-On: upload completed', { endpoint });
       setFileId('uploaded');
     } else {
-      if (__DEV__) console.log('[UPLOAD] Virtual Try-On: upload failed', { endpoint, error: res.error });
       Alert.alert('Upload Failed', (res.error as string) || 'Could not upload image');
     }
   };
@@ -97,9 +85,6 @@ export default function TryOnScreen() {
     setIsGenerating(true);
     setResultImageUrl(null);
 
-    const endpoint = `${API_URL}/api/tryon/fetch-and-tryon`;
-    if (__DEV__) console.log('[GENERATION] Virtual Try-On: generation started', { endpoint, productUrl: productUrl.trim() });
-
     try {
       const response = await apiFetch('/api/tryon/fetch-and-tryon', {
         method: 'POST',
@@ -107,40 +92,26 @@ export default function TryOnScreen() {
         body: JSON.stringify({ url: productUrl.trim() }),
       });
 
-      if (__DEV__) console.log('[GENERATION] Virtual Try-On: response received', { status: response.status, ok: response.ok });
-
       if (response.ok) {
         const data = await response.json();
         const resultUrl = data.result_image_url || data.result_photo_url;
-        if (__DEV__) console.log('[GENERATION] Virtual Try-On: generation completed', {
-          hasResult: !!resultUrl,
-          generationSuccess: data.generation_success,
-        });
         if (data.generation_success && resultUrl) {
-          const url = resultUrl.startsWith('http')
-            ? resultUrl
-            : `${API_URL}${resultUrl}`;
+          const url = resultUrl.startsWith('http') ? resultUrl : `${API_URL}${resultUrl}`;
           setResultImageUrl(url);
           setAiFeedback(data.ai_feedback || null);
-          sendLocalNotification('Image Ready!', 'Your try-on image has been generated. Open the app to view and save it.');
-          Alert.alert(
+          sendLocalNotification(
             'Image Ready!',
-            'Your try-on image has been generated. Save it to your gallery before leaving.'
+            'Your try-on image has been generated. Open the app to view and save it.',
           );
-          if (!user?.is_pro) {
-            setTimeout(() => setShowProPopup(true), 2000);
-          }
         } else if (data.error) {
           Alert.alert('Generation Failed', data.error);
         }
       } else {
         const err = await response.json().catch(() => null);
-        if (__DEV__) console.log('[GENERATION] Virtual Try-On: generation failed', { endpoint, status: response.status, err });
         Alert.alert('Generation Failed', err?.detail || 'Could not generate try-on');
       }
-    } catch (e) {
-      if (__DEV__) console.log('[GENERATION] Virtual Try-On: generation error', { endpoint, error: e });
-      Alert.alert('Error', 'Connection failed');
+    } catch {
+      Alert.alert('Error', 'Connection failed. Please check your internet.');
     }
     setIsGenerating(false);
   };
@@ -154,43 +125,84 @@ export default function TryOnScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <GeneratingOverlay visible={isGenerating} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Virtual Try-On</Text>
-        <Text style={styles.subtitle}>See any outfit on yourself with AI</Text>
-
-        {/* Body Type Toggle */}
-        <View style={styles.toggleRow}>
-          {(['full_body', 'upper_body'] as const).map((type) => (
-            <Pressable
-              key={type}
-              onPress={() => setBodyType(type)}
-              style={[styles.toggleButton, bodyType === type && styles.toggleButtonActive]}>
-              <Ionicons
-                name={type === 'full_body' ? 'body' : 'person'}
-                size={18}
-                color={bodyType === type ? '#fff' : Colors.light.textSecondary}
-              />
-              <Text style={[styles.toggleText, bodyType === type && styles.toggleTextActive]}>
-                {type === 'full_body' ? 'Full Body' : 'Upper Body'}
-              </Text>
-            </Pressable>
-          ))}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.sm }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.title}>Virtual Try-On</Text>
+            <Text style={styles.subtitle}>See any outfit on yourself with AI</Text>
+          </View>
+          <View style={styles.headerBadge}>
+            <Ionicons name="shirt" size={20} color={theme.gold} />
+          </View>
         </View>
 
-        {/* Selfie Upload */}
-        <Pressable onPress={showImagePicker} style={styles.uploadArea}>
+        {/* Steps indicator */}
+        <View style={styles.stepsRow}>
+          <View style={[styles.stepPill, fileId ? styles.stepDone : styles.stepActive]}>
+            <Ionicons
+              name={fileId ? 'checkmark-circle' : 'camera-outline'}
+              size={14}
+              color={fileId ? theme.success : theme.gold}
+            />
+            <Text style={[styles.stepText, (fileId || !fileId) && styles.stepTextActive]}>
+              1. Upload Photo
+            </Text>
+          </View>
+          <View style={styles.stepConnector} />
+          <View style={[styles.stepPill, resultImageUrl ? styles.stepDone : productUrl.trim() ? styles.stepActive : null]}>
+            <Ionicons
+              name={resultImageUrl ? 'checkmark-circle' : 'link-outline'}
+              size={14}
+              color={resultImageUrl ? theme.success : productUrl.trim() ? theme.gold : theme.textMuted}
+            />
+            <Text style={[styles.stepText, (productUrl.trim() || resultImageUrl) && styles.stepTextActive]}>
+              2. Product URL
+            </Text>
+          </View>
+          <View style={styles.stepConnector} />
+          <View style={[styles.stepPill, resultImageUrl ? styles.stepDone : null]}>
+            <Ionicons
+              name={resultImageUrl ? 'checkmark-circle' : 'sparkles-outline'}
+              size={14}
+              color={resultImageUrl ? theme.success : theme.textMuted}
+            />
+            <Text style={[styles.stepText, resultImageUrl && styles.stepTextActive]}>
+              3. Generate
+            </Text>
+          </View>
+        </View>
+
+        {/* Selfie upload area */}
+        <Pressable
+          onPress={showImagePicker}
+          style={({ pressed }) => [styles.uploadArea, { opacity: pressed ? 0.9 : 1 }]}
+        >
           {selfieUri ? (
             <View style={styles.selfieContainer}>
               <Image source={{ uri: selfieUri }} style={styles.selfieImage} />
               {isUploading && (
                 <View style={styles.uploadOverlay}>
-                  <ActivityIndicator size="large" color="#fff" />
+                  <ActivityIndicator size="large" color={theme.gold} />
                   <Text style={styles.uploadingText}>Uploading...</Text>
                 </View>
               )}
-              <Pressable onPress={showImagePicker} style={styles.changePhotoButton}>
+              {fileId && !isUploading && (
+                <View style={styles.uploadedBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color={theme.success} />
+                  <Text style={styles.uploadedText}>Ready</Text>
+                </View>
+              )}
+              <Pressable
+                onPress={showImagePicker}
+                style={({ pressed }) => [styles.changePhotoButton, { opacity: pressed ? 0.8 : 1 }]}
+              >
                 <Ionicons name="camera" size={16} color="#fff" />
                 <Text style={styles.changePhotoText}>Change</Text>
               </Pressable>
@@ -198,99 +210,140 @@ export default function TryOnScreen() {
           ) : (
             <View style={styles.uploadPlaceholder}>
               <View style={styles.uploadIconCircle}>
-                <Ionicons name="camera-outline" size={32} color={Colors.light.gold} />
+                <Ionicons name="camera-outline" size={32} color={theme.gold} />
               </View>
               <Text style={styles.uploadTitle}>Upload Your Photo</Text>
               <Text style={styles.uploadDesc}>Take a selfie or choose from gallery</Text>
+              <View style={styles.uploadHint}>
+                <Ionicons name="information-circle-outline" size={14} color={theme.textMuted} />
+                <Text style={styles.uploadHintText}>Full body photos work best</Text>
+              </View>
             </View>
           )}
         </Pressable>
 
         {/* Product URL */}
-        <View style={styles.urlContainer}>
-          <Text style={styles.inputLabel}>Product URL</Text>
-          <View style={styles.urlInputRow}>
-            <Ionicons name="link" size={20} color={Colors.light.textMuted} />
-            <TextInput
-              style={styles.urlInput}
-              placeholder="Paste product URL here..."
-              placeholderTextColor={Colors.light.textMuted}
-              value={productUrl}
-              onChangeText={setProductUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-            />
-          </View>
-        </View>
+        <Input
+          icon="link-outline"
+          label="Product URL"
+          placeholder="Paste product URL here..."
+          value={productUrl}
+          onChangeText={setProductUrl}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+        />
 
-        {/* Generate Button */}
-        <Pressable
-          onPress={handleGenerate}
-          disabled={isGenerating || !fileId}
-          style={[styles.generateButton, (!fileId || isGenerating) && styles.generateButtonDisabled]}>
-          <LinearGradient
-            colors={fileId ? ['#c9a96e', '#e8c98a'] : ['#d1d5db', '#e5e7eb']}
-            style={styles.generateButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}>
-            {isGenerating ? (
-              <>
-                <ActivityIndicator color="#1a1a2e" />
-                <Text style={styles.generateButtonText}>Generating...</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="sparkles" size={20} color="#1a1a2e" />
-                <Text style={styles.generateButtonText}>Generate Try-On</Text>
-              </>
-            )}
-          </LinearGradient>
-        </Pressable>
+        {/* Generate button */}
+        <View style={styles.generateSection}>
+          <GoldButton
+            title={isGenerating ? 'Generating...' : 'Generate Try-On'}
+            icon={isGenerating ? undefined : 'sparkles'}
+            onPress={handleGenerate}
+            loading={isGenerating}
+            disabled={!fileId || isGenerating}
+            size="lg"
+            fullWidth
+          />
+          <Text style={styles.privacyNote}>
+            <Ionicons name="shield-checkmark-outline" size={12} color={theme.textMuted} /> Your photos are processed securely
+          </Text>
+        </View>
 
         {/* Result */}
         {resultImageUrl && (
-          <ImageResult imageUrl={resultImageUrl} title="Your Try-On Result" aiFeedback={aiFeedback} />
+          <View style={styles.resultSection}>
+            <ImageResult imageUrl={resultImageUrl} title="Your Try-On Result" aiFeedback={aiFeedback} />
+          </View>
         )}
 
         <View style={{ height: TAB_BAR_SPACER }} />
       </ScrollView>
-      <ProUpgradeModal visible={showProPopup} onClose={() => setShowProPopup(false)} variant="compact" />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  scrollContent: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.base },
-  title: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.light.charcoal },
-  subtitle: { fontSize: FontSize.sm, color: Colors.light.textSecondary, marginTop: 4, marginBottom: Spacing.xl },
-  toggleRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xl,
-  },
-  toggleButton: {
+  container: {
     flex: 1,
+    backgroundColor: theme.background,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+  },
+
+  // Header
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.base,
+  },
+  title: {
+    fontSize: FontSize.xl,
+    fontWeight: '800',
+    color: theme.text,
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: FontSize.sm,
+    color: theme.textSecondary,
+    marginTop: 4,
+  },
+  headerBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: theme.goldMuted,
+    borderWidth: 1,
+    borderColor: theme.goldBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Steps
+  stepsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.xl,
+    backgroundColor: theme.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: theme.border,
   },
-  toggleButtonActive: { backgroundColor: Colors.light.charcoal, borderColor: Colors.light.charcoal },
-  toggleText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.light.textSecondary },
-  toggleTextActive: { color: '#fff' },
+  stepPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  stepActive: {},
+  stepDone: {},
+  stepConnector: {
+    width: 20,
+    height: 1,
+    backgroundColor: theme.borderLight,
+    marginHorizontal: 4,
+  },
+  stepText: {
+    fontSize: FontSize.xs,
+    color: theme.textMuted,
+    fontWeight: '500',
+  },
+  stepTextActive: {
+    color: theme.textSecondary,
+  },
+
+  // Upload area
   uploadArea: {
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
     marginBottom: Spacing.xl,
-    borderWidth: 2,
-    borderColor: Colors.light.border,
+    borderWidth: 1.5,
+    borderColor: theme.borderLight,
     borderStyle: 'dashed',
+    backgroundColor: theme.surface,
   },
   uploadPlaceholder: {
     alignItems: 'center',
@@ -300,25 +353,59 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.light.gold + '15',
+    backgroundColor: theme.goldMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.base,
+    borderWidth: 1,
+    borderColor: theme.goldBorder,
   },
-  uploadTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.light.charcoal },
-  uploadDesc: { fontSize: FontSize.sm, color: Colors.light.textSecondary, marginTop: 4 },
-  selfieContainer: { position: 'relative' },
-  selfieImage: { width: '100%', aspectRatio: 3 / 4, resizeMode: 'cover' },
+  uploadTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: theme.text,
+  },
+  uploadDesc: {
+    fontSize: FontSize.sm,
+    color: theme.textSecondary,
+    marginTop: 4,
+  },
+  uploadHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing.md,
+    backgroundColor: theme.surfaceElevated,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+  },
+  uploadHintText: {
+    fontSize: FontSize.xs,
+    color: theme.textMuted,
+  },
+  selfieContainer: {
+    position: 'relative',
+  },
+  selfieImage: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+    resizeMode: 'cover',
+  },
   uploadOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  uploadingText: { color: '#fff', fontSize: FontSize.sm, marginTop: Spacing.sm },
-  changePhotoButton: {
+  uploadingText: {
+    color: '#fff',
+    fontSize: FontSize.sm,
+    marginTop: Spacing.sm,
+  },
+  uploadedBadge: {
     position: 'absolute',
-    bottom: Spacing.md,
+    top: Spacing.md,
     right: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -328,37 +415,42 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: BorderRadius.full,
   },
-  changePhotoText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '600' },
-  urlContainer: { marginBottom: Spacing.xl },
-  inputLabel: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.light.charcoal, marginBottom: Spacing.sm },
-  urlInputRow: {
+  uploadedText: {
+    color: theme.success,
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+  },
+  changePhotoButton: {
+    position: 'absolute',
+    bottom: Spacing.md,
+    right: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: BorderRadius.md,
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: Spacing.md,
-    height: 50,
-    backgroundColor: Colors.light.surfaceSecondary,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
   },
-  urlInput: { flex: 1, fontSize: FontSize.base, color: Colors.light.text },
-  generateButton: {
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-    shadowColor: '#c9a96e',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+  changePhotoText: {
+    color: '#fff',
+    fontSize: FontSize.xs,
+    fontWeight: '600',
   },
-  generateButtonDisabled: { opacity: 0.6, shadowOpacity: 0 },
-  generateButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+
+  // Generate
+  generateSection: {
+    marginTop: Spacing.sm,
     gap: Spacing.sm,
-    paddingVertical: Spacing.base,
   },
-  generateButtonText: { fontSize: FontSize.md, fontWeight: '700', color: '#1a1a2e' },
+  privacyNote: {
+    fontSize: FontSize.xs,
+    color: theme.textMuted,
+    textAlign: 'center',
+  },
+
+  // Result
+  resultSection: {
+    marginTop: Spacing.xl,
+  },
 });

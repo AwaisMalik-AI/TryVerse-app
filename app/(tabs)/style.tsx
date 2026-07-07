@@ -19,12 +19,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius, TAB_BAR_SPACER } from '@/constants/theme';
+import { theme, Gradients, Spacing, FontSize, BorderRadius, TAB_BAR_SPACER, Shadows } from '@/constants/theme';
 import { apiUpload, apiFetch, apiGet, API_URL } from '@/lib/api';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GeneratingOverlay } from '@/components/GeneratingOverlay';
 import { ImageResult } from '@/components/ImageResult';
-import { ProUpgradeModal } from '@/components/ProUpgradeModal';
+import { GoldButton } from '@/components/ui/GoldButton';
 import { useAuth } from '@/lib/auth';
 
 type Tab = 'stylist' | 'poses';
@@ -83,43 +83,22 @@ const PRESET_THUMBNAIL_MAP: Record<string, ReturnType<typeof require>> = {
   'dance_move': require('@/assets/images/poses/dance-move.jpg'),
 };
 
-// POSE_SIZE computed inside the component using useWindowDimensions
-
 type StylistCategoryId = 'ai_stylist' | 'travel' | 'search';
 
-const STYLIST_CATEGORY_META: {
+const STYLIST_CATEGORIES: {
   id: StylistCategoryId;
   title: string;
   subtitle: string;
-  icon: 'sparkles' | 'location-outline' | 'search';
-  cardBg: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  accent: string;
 }[] = [
-  {
-    id: 'ai_stylist',
-    title: 'AI Stylist',
-    subtitle: 'Style scores, color analysis, outfit ideas',
-    icon: 'sparkles',
-    cardBg: '#faf6ef',
-  },
-  {
-    id: 'travel',
-    title: 'Travel & Packing',
-    subtitle: 'Trip outfits, packing lists & destination tips',
-    icon: 'location-outline',
-    cardBg: '#fdf2f7',
-  },
-  {
-    id: 'search',
-    title: 'Search Products',
-    subtitle: 'Find fashion items with AI recommendations',
-    icon: 'search',
-    cardBg: Colors.light.surfaceSecondary,
-  },
+  { id: 'ai_stylist', title: 'AI Stylist', subtitle: 'Style scores, color analysis, outfit ideas', icon: 'sparkles', accent: '#c9a96e' },
+  { id: 'travel', title: 'Travel & Packing', subtitle: 'Trip outfits, packing lists & destination tips', icon: 'location-outline', accent: '#e8618c' },
+  { id: 'search', title: 'Search Products', subtitle: 'Find fashion items with AI recommendations', icon: 'search', accent: '#3b82f6' },
 ];
 
-const STYLIST_CATEGORY_WELCOME: Record<StylistCategoryId, string> = {
-  ai_stylist:
-    "I'm ready to analyze your style! Ask me about color matching, outfit ideas, or style scores.",
+const STYLIST_WELCOME: Record<StylistCategoryId, string> = {
+  ai_stylist: "I'm ready to analyze your style! Ask me about color matching, outfit ideas, or style scores.",
   travel: "Planning a trip? Tell me your destination and I'll help with outfit packing lists!",
   search: "What kind of fashion items are you looking for? I'll find the best matches.",
 };
@@ -127,9 +106,9 @@ const STYLIST_CATEGORY_WELCOME: Record<StylistCategoryId, string> = {
 export default function StyleScreen() {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ tab?: string }>();
-  const POSE_SIZE = (width - Spacing.xl * 2 - Spacing.md * 2) / 3;
-  const [showProPopup, setShowProPopup] = useState(false);
+  const POSE_SIZE = (width - Spacing.xl * 2 - Spacing.sm * 2) / 3;
   const [tab, setTab] = useState<Tab>(params.tab === 'poses' ? 'poses' : 'stylist');
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
@@ -144,24 +123,20 @@ export default function StyleScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [posePresets, setPosePresets] = useState<PosePreset[]>([]);
   const [loadingPresets, setLoadingPresets] = useState(false);
+  const [poseCategory, setPoseCategory] = useState<string>('all');
 
   const loadPosePresets = useCallback(async () => {
     setLoadingPresets(true);
     const res = await apiGet<PosePreset[]>('/api/pose/presets');
-    if (res.ok && res.data) {
-      setPosePresets(res.data);
-      if (__DEV__) console.log('[POSE] Presets loaded:', res.data.length);
-    }
+    if (res.ok && res.data) setPosePresets(res.data);
     setLoadingPresets(false);
   }, []);
 
-  useEffect(() => {
-    if (params.tab === 'poses') setTab('poses');
-  }, [params.tab]);
+  useEffect(() => { if (params.tab === 'poses') setTab('poses'); }, [params.tab]);
+  useEffect(() => { loadPosePresets(); }, [loadPosePresets]);
 
-  useEffect(() => {
-    loadPosePresets();
-  }, [loadPosePresets]);
+  const poseCategories = ['all', ...Array.from(new Set(posePresets.map((p) => p.category)))];
+  const filteredPresets = poseCategory === 'all' ? posePresets : posePresets.filter((p) => p.category === poseCategory);
 
   const clearStylistSession = () => {
     setStylistPhotoUri(null);
@@ -172,10 +147,7 @@ export default function StyleScreen() {
   };
 
   const pickStylistPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
       const uri = result.assets[0].uri;
       setStylistPhotoUri(uri);
@@ -195,41 +167,26 @@ export default function StyleScreen() {
 
   const selectStylistCategory = (id: StylistCategoryId) => {
     setSelectedCategory(id);
-    setMessages([{ role: 'ai', text: STYLIST_CATEGORY_WELCOME[id] }]);
+    setMessages([{ role: 'ai', text: STYLIST_WELCOME[id] }]);
     setChatInput('');
   };
 
-  const stylistCategoryTitle =
-    selectedCategory === 'ai_stylist'
-      ? 'AI Stylist'
-      : selectedCategory === 'travel'
-        ? 'Travel & Packing'
-        : selectedCategory === 'search'
-          ? 'Search Products'
-          : '';
-
   const ensureConversation = async (): Promise<number | null> => {
     if (conversationId) return conversationId;
-    if (__DEV__) console.log('[STYLIST] Creating conversation: trying start-from-tryon');
     try {
       const response = await apiFetch('/api/stylist/start-from-tryon', { method: 'POST' });
       if (response.ok) {
         const data = await response.json();
-        if (__DEV__) console.log('[STYLIST] Conversation created via start-from-tryon', { id: data.id });
         setConversationId(data.id);
         return data.id;
       }
-      if (__DEV__) console.log('[STYLIST] start-from-tryon failed, trying upload-photo');
-      const uploadRes = await apiFetch('/api/stylist/upload-photo', { method: 'POST' });
-      if (uploadRes.ok) {
-        const data = await uploadRes.json();
-        if (__DEV__) console.log('[STYLIST] Conversation created via upload-photo', { id: data.id });
-        setConversationId(data.id);
-        return data.id;
+    } catch {}
+    if (stylistPhotoUri) {
+      const uploadRes = await apiUpload('/api/stylist/upload-photo', stylistPhotoUri, 'file');
+      if (uploadRes.ok && uploadRes.data) {
+        const data = uploadRes.data as { id?: number };
+        if (data.id) { setConversationId(data.id); return data.id; }
       }
-      if (__DEV__) console.log('[STYLIST] No conversation created', { startStatus: response.status, uploadStatus: uploadRes.status });
-    } catch (e) {
-      if (__DEV__) console.log('[STYLIST] ensureConversation error', e);
     }
     return null;
   };
@@ -244,42 +201,33 @@ export default function StyleScreen() {
     try {
       const convId = await ensureConversation();
       if (!convId) {
-        const noConvMessage =
-          'I could not start a session. Please tap "Choose Photo" to upload your photo again, or use a photo from Virtual Try-On.';
-        if (__DEV__) console.log('[STYLIST] No conversation available, showing message to user');
-        setMessages((prev) => [...prev, { role: 'ai', text: noConvMessage }]);
+        setMessages((prev) => [...prev, { role: 'ai', text: 'Could not start a session. Please upload your photo again.' }]);
         setIsSending(false);
         return;
       }
-
-      if (__DEV__) console.log('[STYLIST] Sending message', { conversationId: convId, message: userMsg });
+      const chatBody: Record<string, unknown> = { conversation_id: convId, message: userMsg };
+      if (selectedCategory) chatBody.category = selectedCategory;
       const response = await apiFetch('/api/stylist/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversation_id: convId, message: userMsg }),
+        body: JSON.stringify(chatBody),
       });
       if (response.ok) {
         const data = await response.json();
         const botText = data.bot_message?.content || data.response || data.message || 'No response';
-        if (__DEV__) console.log('[STYLIST] Response received', { hasBotMessage: !!data.bot_message });
         setMessages((prev) => [...prev, { role: 'ai', text: botText }]);
       } else {
         const err = await response.json().catch(() => null);
-        if (__DEV__) console.log('[STYLIST] Chat error', { status: response.status, err });
         setMessages((prev) => [...prev, { role: 'ai', text: err?.detail || 'Sorry, I could not process that.' }]);
       }
-    } catch (e) {
-      if (__DEV__) console.log('[STYLIST] Chat connection error', e);
+    } catch {
       setMessages((prev) => [...prev, { role: 'ai', text: 'Connection error. Please try again.' }]);
     }
     setIsSending(false);
   };
 
   const pickPosePhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
       setPosePhotoUri(result.assets[0].uri);
       setPoseResults([]);
@@ -287,15 +235,16 @@ export default function StyleScreen() {
   };
 
   const togglePresetSelection = (id: number) => {
+    const preset = posePresets.find((p) => p.id === id);
+    if (preset?.is_premium && !user?.is_pro) {
+      Alert.alert('Pro Feature', 'Premium poses are available for Pro members. Upgrade to unlock all poses.');
+      return;
+    }
     setSelectedPresetIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        if (next.size >= 3) {
-          Alert.alert('Limit Reached', 'You can select up to 3 poses at a time.');
-          return prev;
-        }
+      if (next.has(id)) { next.delete(id); }
+      else {
+        if (next.size >= 3) { Alert.alert('Limit Reached', 'You can select up to 3 poses at a time.'); return prev; }
         next.add(id);
       }
       return next;
@@ -307,247 +256,201 @@ export default function StyleScreen() {
       Alert.alert('Missing', 'Please select a photo and at least one pose.');
       return;
     }
-    const presetIdsArray = Array.from(selectedPresetIds);
-    const endpoint = `${API_URL}/api/pose/generate-from-presets`;
-    if (__DEV__) console.log('[POSE] Generation started', { endpoint, presetIds: presetIdsArray });
     setIsGeneratingPose(true);
     const res = await apiUpload('/api/pose/generate-from-presets', posePhotoUri, 'file', {
-      preset_ids: JSON.stringify(presetIdsArray),
+      preset_ids: JSON.stringify(Array.from(selectedPresetIds)),
     });
     setIsGeneratingPose(false);
-    if (__DEV__) console.log('[POSE] Generation response', { ok: res.ok, status: res.status, hasData: !!res.data });
     if (res.ok && res.data) {
       const data = res.data as { generated_image_urls?: string[] };
       if (data.generated_image_urls && data.generated_image_urls.length > 0) {
-        const urls = data.generated_image_urls.map((url) =>
-          url.startsWith('http') ? url : `${API_URL}${url}`,
-        );
+        const urls = data.generated_image_urls.map((url) => url.startsWith('http') ? url : `${API_URL}${url}`);
         setPoseResults(urls);
         setPoseFeedback((res.data as any)?.ai_feedback || null);
-        if (__DEV__) console.log('[POSE] Generation completed', { resultCount: urls.length });
         const count = urls.length;
-        sendLocalNotification('Image Ready!', `Your ${count > 1 ? `${count} poses are` : 'pose is'} ready. Open the app to view and save.`);
-        Alert.alert(
-          'Image Ready!',
-          `Your ${count > 1 ? `${count} pose images have` : 'pose image has'} been generated. Save to your gallery before leaving.`
-        );
-        if (!user?.is_pro) {
-          setTimeout(() => setShowProPopup(true), 2000);
-        }
+        sendLocalNotification('Image Ready!', `Your ${count > 1 ? `${count} poses are` : 'pose is'} ready.`);
       }
     } else {
-      if (__DEV__) console.log('[POSE] Generation failed', { endpoint, error: res.error });
       Alert.alert('Error', (res.error as string) || 'Generation failed');
     }
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <GeneratingOverlay visible={isGeneratingPose} message="Transforming your pose..." />
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Style</Text>
-      </View>
+  const stylistCategoryTitle = selectedCategory === 'ai_stylist' ? 'AI Stylist' : selectedCategory === 'travel' ? 'Travel & Packing' : selectedCategory === 'search' ? 'Search Products' : '';
 
-      {/* Tab toggle */}
-      <View style={styles.tabRow}>
-        <Pressable
-          onPress={() => setTab('stylist')}
-          style={[styles.tabButton, tab === 'stylist' && styles.tabButtonActive]}>
-          <Ionicons name="sparkles" size={18} color={tab === 'stylist' ? '#fff' : Colors.light.textSecondary} />
-          <Text style={[styles.tabText, tab === 'stylist' && styles.tabTextActive]}>AI Stylist</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setTab('poses')}
-          style={[styles.tabButton, tab === 'poses' && styles.tabButtonActive]}>
-          <Ionicons name="camera" size={18} color={tab === 'poses' ? '#fff' : Colors.light.textSecondary} />
-          <Text style={[styles.tabText, tab === 'poses' && styles.tabTextActive]}>Pose Studio</Text>
-        </Pressable>
+  return (
+    <View style={styles.container}>
+      <GeneratingOverlay visible={isGeneratingPose} message="Transforming your pose..." />
+
+      {/* Header + tabs */}
+      <View style={[styles.headerArea, { paddingTop: insets.top + Spacing.sm }]}>
+        <Text style={styles.headerTitle}>Style</Text>
+        <View style={styles.tabRow}>
+          {([['stylist', 'sparkles-outline', 'AI Stylist'], ['poses', 'camera-outline', 'Pose Studio']] as const).map(([t, icon, label]) => (
+            <Pressable
+              key={t}
+              onPress={() => setTab(t as Tab)}
+              style={[styles.tabButton, tab === t && styles.tabButtonActive]}
+            >
+              <Ionicons name={icon as any} size={16} color={tab === t ? theme.textInverse : theme.textSecondary} />
+              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       {tab === 'stylist' ? (
         stylistPhotoUri === null ? (
-          <ScrollView
-            style={styles.stylistOnboardingScroll}
-            contentContainerStyle={styles.stylistOnboardingContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
-            <Animated.View entering={FadeIn} style={styles.stylistOnboardingInner}>
-              <Text style={styles.stylistHeroTitle}>Your AI Fashion Stylist</Text>
-              <Text style={styles.stylistHeroSubtitle}>
-                Get personalized styling advice, trip packing lists, and product recommendations
-              </Text>
+          <ScrollView style={s.flex} contentContainerStyle={styles.stylistOnboard} showsVerticalScrollIndicator={false}>
+            <Animated.View entering={FadeIn} style={styles.stylistOnboardInner}>
+              <View style={styles.stylistIconBadge}>
+                <Ionicons name="sparkles" size={36} color={theme.gold} />
+              </View>
+              <Text style={styles.stylistHeroTitle}>AI Fashion Stylist</Text>
+              <Text style={styles.stylistHeroSub}>Get personalized styling advice, outfit ideas & product recommendations</Text>
               <Pressable onPress={pickStylistPhoto} style={styles.stylistUploadArea}>
-                <Ionicons name="camera" size={40} color={Colors.light.gold} />
-                <Text style={styles.stylistUploadAreaText}>Upload Your Photo First</Text>
+                <Ionicons name="camera-outline" size={36} color={theme.gold} />
+                <Text style={styles.stylistUploadText}>Upload Your Photo</Text>
+                <Text style={styles.stylistUploadHint}>Full body or outfit photo works best</Text>
               </Pressable>
-              <Pressable onPress={pickStylistPhoto} style={styles.stylistChoosePhotoWrap}>
-                <LinearGradient
-                  colors={['#c9a96e', '#e8c98a']}
-                  style={styles.stylistChoosePhotoGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}>
-                  <Text style={styles.stylistChoosePhotoText}>Choose Photo</Text>
-                </LinearGradient>
-              </Pressable>
-              <Text style={styles.stylistPrivacyNote}>
-                Your photo is used only for styling analysis and is never shared.
-              </Text>
+              <GoldButton title="Choose Photo" icon="image-outline" onPress={pickStylistPhoto} size="lg" fullWidth />
+              <Text style={styles.privacyNote}>Your photo is used only for styling analysis and is never shared.</Text>
             </Animated.View>
           </ScrollView>
         ) : selectedCategory === null ? (
-          <ScrollView
-            style={styles.stylistOnboardingScroll}
-            contentContainerStyle={styles.stylistCategoryScrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}>
-            <View style={styles.stylistPhotoRow}>
-              <Image source={{ uri: stylistPhotoUri }} style={styles.stylistPhotoThumb} />
-              <View style={styles.stylistPhotoRowText}>
-                <Text style={styles.stylistPhotoReady}>Photo uploaded - Ready for personalized advice</Text>
-                <Pressable onPress={clearStylistSession} style={styles.stylistChangeBtn}>
-                  <Text style={styles.stylistChangeBtnText}>Change</Text>
-                </Pressable>
+          <ScrollView style={s.flex} contentContainerStyle={styles.categoryScroll} showsVerticalScrollIndicator={false}>
+            <View style={styles.photoRow}>
+              <Image source={{ uri: stylistPhotoUri }} style={styles.photoThumb} />
+              <View style={s.flex}>
+                <Text style={styles.photoReady}>Photo uploaded</Text>
+                <Text style={styles.photoReadySub}>Choose a styling mode below</Text>
+                <Pressable onPress={clearStylistSession}><Text style={styles.changeBtn}>Change photo</Text></Pressable>
               </View>
             </View>
-            <View style={styles.stylistCategoryGrid}>
-              {STYLIST_CATEGORY_META.map((cat, i) => (
-                <Pressable
-                  key={cat.id}
-                  onPress={() => selectStylistCategory(cat.id)}
-                  style={[styles.stylistCategoryCard, { backgroundColor: cat.cardBg }]}>
-                  <Animated.View entering={FadeInDown.delay(i * 60)}>
-                    <Ionicons name={cat.icon} size={28} color={Colors.light.charcoal} />
-                    <Text style={styles.stylistCategoryCardTitle}>{cat.title}</Text>
-                    <Text style={styles.stylistCategoryCardSubtitle}>{cat.subtitle}</Text>
+            <View style={styles.categoryGrid}>
+              {STYLIST_CATEGORIES.map((cat, i) => (
+                <Pressable key={cat.id} onPress={() => selectStylistCategory(cat.id)} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+                  <Animated.View entering={FadeInDown.delay(i * 60)} style={styles.categoryCard}>
+                    <View style={[styles.categoryIcon, { backgroundColor: cat.accent + '18' }]}>
+                      <Ionicons name={cat.icon} size={24} color={cat.accent} />
+                    </View>
+                    <View style={s.flex}>
+                      <Text style={styles.categoryTitle}>{cat.title}</Text>
+                      <Text style={styles.categorySub}>{cat.subtitle}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
                   </Animated.View>
                 </Pressable>
               ))}
             </View>
           </ScrollView>
         ) : (
-          <KeyboardAvoidingView
-            style={styles.stylistChatKeyboard}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}>
-            <View style={styles.chatContainer}>
-              <View style={styles.stylistChatHeader}>
-                <Pressable
-                  onPress={() => {
-                    setSelectedCategory(null);
-                    setMessages([]);
-                    setChatInput('');
-                  }}
-                  style={styles.stylistChatBack}
-                  hitSlop={8}>
-                  <Ionicons name="chevron-back" size={22} color={Colors.light.charcoal} />
-                  <Text style={styles.stylistChatBackText}>Back</Text>
+          <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'} keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}>
+            <View style={s.flex}>
+              <View style={styles.chatHeader}>
+                <Pressable onPress={() => { setSelectedCategory(null); setMessages([]); setChatInput(''); }} style={styles.chatBack} hitSlop={8}>
+                  <Ionicons name="chevron-back" size={22} color={theme.text} />
+                  <Text style={styles.chatBackText}>Back</Text>
                 </Pressable>
-                <Text style={styles.stylistChatHeaderTitle} numberOfLines={1}>
-                  {stylistCategoryTitle}
-                </Text>
-                <View style={styles.stylistChatHeaderSpacer} />
+                <Text style={styles.chatHeaderTitle} numberOfLines={1}>{stylistCategoryTitle}</Text>
+                <View style={{ width: 56 }} />
               </View>
-              <ScrollView
-                style={styles.chatMessages}
-                contentContainerStyle={styles.chatMessagesContent}
-                keyboardShouldPersistTaps="handled">
+              <ScrollView style={s.flex} contentContainerStyle={styles.chatMsgContent} keyboardShouldPersistTaps="handled">
                 {messages.map((msg, i) => (
-                  <Animated.View
-                    key={i}
-                    entering={FadeInDown.delay(Math.min(i * 50, 200))}
-                    style={[styles.chatBubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
-                    {msg.role === 'user' ? (
-                      <Text style={[styles.chatBubbleText, styles.userBubbleText]}>{msg.text}</Text>
-                    ) : (
-                      <Text style={styles.chatBubbleText}>
-                        {msg.text.split(/(\*\*[^*]+\*\*)/g).map((part, j) => {
-                          if (part.startsWith('**') && part.endsWith('**')) {
-                            return <Text key={j} style={{ fontWeight: '700', color: Colors.light.charcoal }}>{part.slice(2, -2)}</Text>;
-                          }
-                          return <Text key={j}>{part}</Text>;
-                        })}
-                      </Text>
-                    )}
+                  <Animated.View key={i} entering={FadeInDown.delay(Math.min(i * 50, 200))} style={[styles.chatBubble, msg.role === 'user' ? styles.userBubble : styles.aiBubble]}>
+                    <Text style={[styles.chatBubbleText, msg.role === 'user' && styles.userBubbleText]}>
+                      {msg.text.split(/(\*\*[^*]+\*\*)/g).map((part, j) => {
+                        if (part.startsWith('**') && part.endsWith('**')) return <Text key={j} style={{ fontWeight: '700', color: theme.gold }}>{part.slice(2, -2)}</Text>;
+                        return <Text key={j}>{part}</Text>;
+                      })}
+                    </Text>
                   </Animated.View>
                 ))}
                 {isSending && (
-                  <View style={[styles.chatBubble, styles.aiBubble]}>
-                    <ActivityIndicator size="small" color={Colors.light.gold} />
-                  </View>
+                  <View style={[styles.chatBubble, styles.aiBubble]}><ActivityIndicator size="small" color={theme.gold} /></View>
                 )}
               </ScrollView>
               <View style={styles.chatInputRow}>
                 <TextInput
                   style={styles.chatInput}
                   placeholder="Ask me anything about style..."
-                  placeholderTextColor={Colors.light.textMuted}
+                  placeholderTextColor={theme.placeholder}
                   value={chatInput}
                   onChangeText={setChatInput}
                   onSubmitEditing={sendMessage}
                   returnKeyType="send"
                   multiline
+                  selectionColor={theme.gold}
                 />
-                <Pressable onPress={sendMessage} disabled={isSending || !chatInput.trim()} style={styles.sendButton}>
-                  <Ionicons
-                    name="send"
-                    size={20}
-                    color={chatInput.trim() ? Colors.light.gold : Colors.light.textMuted}
-                  />
+                <Pressable onPress={sendMessage} disabled={isSending || !chatInput.trim()} style={({ pressed }) => [styles.sendButton, { opacity: pressed ? 0.7 : 1 }]}>
+                  <Ionicons name="send" size={18} color={chatInput.trim() ? theme.gold : theme.textMuted} />
                 </Pressable>
               </View>
             </View>
           </KeyboardAvoidingView>
         )
       ) : (
-        /* Pose Studio */
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.poseContent}>
           {/* Upload */}
-          <Pressable onPress={pickPosePhoto} style={styles.poseUpload}>
+          <Pressable onPress={pickPosePhoto} style={({ pressed }) => [styles.poseUpload, { opacity: pressed ? 0.9 : 1 }]}>
             {posePhotoUri ? (
               <Image source={{ uri: posePhotoUri }} style={styles.poseUploadImage} />
             ) : (
               <View style={styles.poseUploadPlaceholder}>
-                <Ionicons name="image-outline" size={32} color={Colors.light.gold} />
+                <View style={styles.poseUploadIcon}>
+                  <Ionicons name="image-outline" size={28} color={theme.gold} />
+                </View>
                 <Text style={styles.poseUploadText}>Select your photo</Text>
               </View>
             )}
           </Pressable>
 
-          {/* Pose Grid */}
-          <Text style={styles.poseGridTitle}>Choose Poses (up to 3)</Text>
+          {/* Category filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.poseCategoryScroll} contentContainerStyle={styles.poseCategoryRow}>
+            {poseCategories.map((cat) => (
+              <Pressable key={cat} onPress={() => setPoseCategory(cat)} style={[styles.poseCatChip, poseCategory === cat && styles.poseCatChipActive]}>
+                <Text style={[styles.poseCatText, poseCategory === cat && styles.poseCatTextActive]}>
+                  {cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.poseGridTitle}>
+            Choose Poses ({selectedPresetIds.size}/3) · {filteredPresets.length} available
+          </Text>
+
           {loadingPresets ? (
-            <ActivityIndicator size="large" color={Colors.light.gold} style={{ marginVertical: Spacing.xl }} />
+            <ActivityIndicator size="large" color={theme.gold} style={{ marginVertical: Spacing.xl }} />
           ) : (
             <View style={styles.poseGrid}>
-              {posePresets.map((preset) => {
+              {filteredPresets.map((preset) => {
                 const isSelected = selectedPresetIds.has(preset.id);
                 const localThumb = PRESET_THUMBNAIL_MAP[preset.slug];
-                const imageSource = localThumb
-                  ? localThumb
-                  : preset.thumbnail_url
-                    ? { uri: preset.thumbnail_url.startsWith('http') ? preset.thumbnail_url : `${API_URL}${preset.thumbnail_url}` }
-                    : null;
+                const imageSource = localThumb || (preset.thumbnail_url ? { uri: preset.thumbnail_url.startsWith('http') ? preset.thumbnail_url : `${API_URL}${preset.thumbnail_url}` } : null);
                 return (
                   <Pressable
                     key={preset.id}
                     onPress={() => togglePresetSelection(preset.id)}
-                    style={[styles.poseGridItem, { width: POSE_SIZE, height: POSE_SIZE * 1.3 }, isSelected && styles.poseGridItemSelected]}>
+                    style={[styles.poseGridItem, { width: POSE_SIZE, height: POSE_SIZE * 1.3 }, isSelected && styles.poseGridItemSelected]}
+                  >
                     {imageSource ? (
                       <Image source={imageSource} style={styles.poseGridImage} />
                     ) : (
-                      <View style={[styles.poseGridImage, { backgroundColor: Colors.light.surfaceSecondary, justifyContent: 'center', alignItems: 'center' }]}>
-                        <Ionicons name="body" size={24} color={Colors.light.textMuted} />
+                      <View style={[styles.poseGridImage, styles.poseGridPlaceholder]}>
+                        <Ionicons name="body" size={22} color={theme.textMuted} />
                       </View>
                     )}
-                    <LinearGradient
-                      colors={['transparent', 'rgba(0,0,0,0.7)']}
-                      style={styles.poseGridOverlay}>
+                    <LinearGradient colors={['transparent', 'rgba(0,0,0,0.75)']} style={styles.poseGridOverlay}>
                       <Text style={styles.poseGridName} numberOfLines={1}>{preset.name}</Text>
                     </LinearGradient>
                     {isSelected && (
                       <View style={styles.poseCheck}>
-                        <Ionicons name="checkmark-circle" size={24} color={Colors.light.gold} />
+                        <Ionicons name="checkmark-circle" size={22} color={theme.gold} />
+                      </View>
+                    )}
+                    {preset.is_premium && (
+                      <View style={styles.premiumBadge}>
+                        <Ionicons name="diamond" size={10} color={theme.gold} />
                       </View>
                     )}
                   </Pressable>
@@ -556,287 +459,124 @@ export default function StyleScreen() {
             </View>
           )}
 
-          {/* Generate */}
-          <Pressable
-            onPress={generatePose}
-            disabled={isGeneratingPose || !posePhotoUri || selectedPresetIds.size === 0}
-            style={[styles.generatePoseButton, (!posePhotoUri || selectedPresetIds.size === 0) && { opacity: 0.5 }]}>
-            <LinearGradient
-              colors={['#c9a96e', '#e8c98a']}
-              style={styles.generatePoseGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}>
-              {isGeneratingPose ? (
-                <ActivityIndicator color="#1a1a2e" />
-              ) : (
-                <>
-                  <Ionicons name="sparkles" size={20} color="#1a1a2e" />
-                  <Text style={styles.generatePoseText}>
-                    Generate {selectedPresetIds.size > 0 ? `${selectedPresetIds.size} Pose${selectedPresetIds.size > 1 ? 's' : ''}` : 'Pose'}
-                  </Text>
-                </>
-              )}
-            </LinearGradient>
-          </Pressable>
+          <View style={{ marginTop: Spacing.lg }}>
+            <GoldButton
+              title={`Generate ${selectedPresetIds.size > 0 ? `${selectedPresetIds.size} Pose${selectedPresetIds.size > 1 ? 's' : ''}` : 'Pose'}`}
+              icon="sparkles"
+              onPress={generatePose}
+              loading={isGeneratingPose}
+              disabled={!posePhotoUri || selectedPresetIds.size === 0 || isGeneratingPose}
+              size="lg"
+              fullWidth
+            />
+          </View>
 
           {poseResults.map((url, i) => (
-            <ImageResult
-              key={`${url}-${i}`}
-              imageUrl={url}
-              title={poseResults.length > 1 ? `Pose Result ${i + 1}` : 'Your Pose Result'}
-              aiFeedback={i === 0 ? poseFeedback : null}
-            />
+            <ImageResult key={`${url}-${i}`} imageUrl={url} title={poseResults.length > 1 ? `Pose Result ${i + 1}` : 'Your Pose Result'} aiFeedback={i === 0 ? poseFeedback : null} />
           ))}
 
           <View style={{ height: TAB_BAR_SPACER }} />
         </ScrollView>
       )}
-      <ProUpgradeModal visible={showProPopup} onClose={() => setShowProPopup(false)} variant="compact" />
-    </SafeAreaView>
+    </View>
   );
 }
 
+const s = StyleSheet.create({ flex: { flex: 1 } });
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm, paddingBottom: Spacing.md },
-  headerTitle: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.light.charcoal },
-  tabRow: {
-    flexDirection: 'row',
-    marginHorizontal: Spacing.xl,
-    gap: Spacing.sm,
-    marginBottom: Spacing.base,
-  },
+  container: { flex: 1, backgroundColor: theme.background },
+  headerArea: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.sm },
+  headerTitle: { fontSize: FontSize.xl, fontWeight: '800', color: theme.text, marginBottom: Spacing.md, letterSpacing: -0.3 },
+  tabRow: { flexDirection: 'row', gap: Spacing.sm },
   tabButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: Spacing.md, borderRadius: BorderRadius.md,
+    borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.surface,
   },
-  tabButtonActive: { backgroundColor: Colors.light.charcoal, borderColor: Colors.light.charcoal },
-  tabText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.light.textSecondary },
-  tabTextActive: { color: '#fff' },
-  chatContainer: { flex: 1 },
-  chatMessages: { flex: 1, paddingHorizontal: Spacing.xl },
-  chatMessagesContent: { paddingTop: Spacing.base, paddingBottom: Spacing.base },
-  chatBubble: { maxWidth: '80%', padding: Spacing.md, borderRadius: BorderRadius.lg, marginBottom: Spacing.sm },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: Colors.light.charcoal },
-  aiBubble: { alignSelf: 'flex-start', backgroundColor: Colors.light.surfaceSecondary },
-  chatBubbleText: { fontSize: FontSize.base, color: Colors.light.charcoal, lineHeight: 22 },
-  userBubbleText: { color: '#fff' },
-  stylistChatKeyboard: { flex: 1 },
-  stylistOnboardingScroll: { flex: 1 },
-  stylistOnboardingContent: {
-    flexGrow: 1,
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing['2xl'],
-  },
-  stylistOnboardingInner: { paddingTop: Spacing.lg, alignItems: 'center' },
-  stylistHeroTitle: {
-    fontSize: FontSize.xl,
-    fontWeight: '800',
-    color: Colors.light.charcoal,
-    textAlign: 'center',
-  },
-  stylistHeroSubtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.light.textSecondary,
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-    lineHeight: 22,
-    paddingHorizontal: Spacing.md,
-  },
+  tabButtonActive: { backgroundColor: theme.gold, borderColor: theme.gold },
+  tabText: { fontSize: FontSize.sm, fontWeight: '600', color: theme.textSecondary },
+  tabTextActive: { color: theme.textInverse },
+
+  // Stylist onboarding
+  stylistOnboard: { flexGrow: 1, paddingHorizontal: Spacing.xl, paddingBottom: Spacing['2xl'] },
+  stylistOnboardInner: { paddingTop: Spacing['2xl'], alignItems: 'center', gap: Spacing.base },
+  stylistIconBadge: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.goldMuted, borderWidth: 1, borderColor: theme.goldBorder, justifyContent: 'center', alignItems: 'center' },
+  stylistHeroTitle: { fontSize: FontSize['2xl'], fontWeight: '800', color: theme.text, textAlign: 'center' },
+  stylistHeroSub: { fontSize: FontSize.sm, color: theme.textSecondary, textAlign: 'center', lineHeight: 22, paddingHorizontal: Spacing.md },
   stylistUploadArea: {
-    marginTop: Spacing['2xl'],
-    width: '100%',
-    minHeight: 160,
-    borderRadius: BorderRadius.lg,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: Colors.light.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.light.surfaceSecondary,
-    paddingVertical: Spacing.xl,
+    width: '100%', minHeight: 140, borderRadius: BorderRadius.lg, borderWidth: 1.5, borderStyle: 'dashed', borderColor: theme.borderLight,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: theme.surface, paddingVertical: Spacing.xl, gap: Spacing.sm, marginTop: Spacing.sm,
   },
-  stylistUploadAreaText: {
-    fontSize: FontSize.md,
-    fontWeight: '600',
-    color: Colors.light.charcoal,
-    marginTop: Spacing.md,
+  stylistUploadText: { fontSize: FontSize.md, fontWeight: '600', color: theme.text },
+  stylistUploadHint: { fontSize: FontSize.xs, color: theme.textMuted },
+  privacyNote: { fontSize: FontSize.xs, color: theme.textMuted, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 18 },
+
+  // Category selection
+  categoryScroll: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing['2xl'] },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.xl, marginTop: Spacing.base },
+  photoThumb: { width: 64, height: 84, borderRadius: BorderRadius.md, backgroundColor: theme.surface },
+  photoReady: { fontSize: FontSize.sm, fontWeight: '700', color: theme.text },
+  photoReadySub: { fontSize: FontSize.xs, color: theme.textSecondary, marginTop: 2 },
+  changeBtn: { fontSize: FontSize.sm, fontWeight: '700', color: theme.gold, marginTop: Spacing.xs },
+  categoryGrid: { gap: Spacing.md },
+  categoryCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: theme.card, borderRadius: BorderRadius.lg, padding: Spacing.base,
+    borderWidth: 1, borderColor: theme.border,
   },
-  stylistChoosePhotoWrap: {
-    marginTop: Spacing.lg,
-    width: '100%',
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-    shadowColor: '#c9a96e',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+  categoryIcon: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  categoryTitle: { fontSize: FontSize.base, fontWeight: '700', color: theme.text },
+  categorySub: { fontSize: FontSize.xs, color: theme.textSecondary, marginTop: 2, lineHeight: 18 },
+
+  // Chat
+  chatHeader: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: theme.border,
   },
-  stylistChoosePhotoGradient: {
-    paddingVertical: Spacing.base,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stylistChoosePhotoText: { fontSize: FontSize.md, fontWeight: '700', color: '#1a1a2e' },
-  stylistPrivacyNote: {
-    fontSize: FontSize.xs,
-    color: Colors.light.textMuted,
-    textAlign: 'center',
-    marginTop: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    lineHeight: 18,
-  },
-  stylistCategoryScrollContent: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing['2xl'],
-  },
-  stylistPhotoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  stylistPhotoThumb: {
-    width: 72,
-    height: 96,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.light.surfaceSecondary,
-  },
-  stylistPhotoRowText: { flex: 1 },
-  stylistPhotoReady: {
-    fontSize: FontSize.sm,
-    fontWeight: '600',
-    color: Colors.light.charcoal,
-    lineHeight: 20,
-  },
-  stylistChangeBtn: { alignSelf: 'flex-start', marginTop: Spacing.sm },
-  stylistChangeBtnText: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.light.gold },
-  stylistCategoryGrid: { gap: Spacing.md },
-  stylistCategoryCard: {
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.light.borderLight,
-  },
-  stylistCategoryCardTitle: {
-    fontSize: FontSize.md,
-    fontWeight: '700',
-    color: Colors.light.charcoal,
-    marginTop: Spacing.sm,
-  },
-  stylistCategoryCardSubtitle: {
-    fontSize: FontSize.sm,
-    color: Colors.light.textSecondary,
-    marginTop: Spacing.xs,
-    lineHeight: 20,
-  },
-  stylistChatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.light.borderLight,
-  },
-  stylistChatBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  stylistChatBackText: { fontSize: FontSize.base, fontWeight: '600', color: Colors.light.charcoal },
-  stylistChatHeaderTitle: {
-    flex: 1,
-    fontSize: FontSize.md,
-    fontWeight: '700',
-    color: Colors.light.charcoal,
-    textAlign: 'center',
-  },
-  stylistChatHeaderSpacer: { width: 56 },
+  chatBack: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  chatBackText: { fontSize: FontSize.base, fontWeight: '600', color: theme.text },
+  chatHeaderTitle: { flex: 1, fontSize: FontSize.md, fontWeight: '700', color: theme.text, textAlign: 'center' },
+  chatMsgContent: { paddingTop: Spacing.base, paddingBottom: Spacing.base, paddingHorizontal: Spacing.xl },
+  chatBubble: { maxWidth: '80%', padding: Spacing.md, borderRadius: BorderRadius.lg, marginBottom: Spacing.sm },
+  userBubble: { alignSelf: 'flex-end', backgroundColor: theme.gold },
+  aiBubble: { alignSelf: 'flex-start', backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border },
+  chatBubbleText: { fontSize: FontSize.base, color: theme.textSecondary, lineHeight: 22 },
+  userBubbleText: { color: theme.textInverse },
   chatInputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.sm,
+    flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm,
     paddingBottom: Platform.OS === 'ios' ? 30 : TAB_BAR_SPACER + 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.light.borderLight,
-    gap: Spacing.sm,
-    backgroundColor: '#fff',
+    borderTopWidth: 1, borderTopColor: theme.border, gap: Spacing.sm, backgroundColor: theme.background,
   },
   chatInput: {
-    flex: 1,
-    fontSize: FontSize.base,
-    color: Colors.light.text,
-    minHeight: 44,
-    maxHeight: 100,
-    backgroundColor: Colors.light.surfaceSecondary,
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? Spacing.md : Spacing.sm,
+    flex: 1, fontSize: FontSize.base, color: theme.text, minHeight: 44, maxHeight: 100,
+    backgroundColor: theme.inputBg, borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.md, paddingVertical: Platform.OS === 'ios' ? Spacing.md : Spacing.sm,
+    borderWidth: 1, borderColor: theme.inputBorder,
   },
-  sendButton: {
-    padding: Spacing.sm,
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.light.surfaceSecondary,
-    borderRadius: 22,
-  },
-  poseContent: { paddingHorizontal: Spacing.xl },
-  poseUpload: {
-    borderRadius: BorderRadius.lg,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: Colors.light.border,
-    marginBottom: Spacing.xl,
-  },
+  sendButton: { padding: Spacing.sm, width: 44, height: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.surface, borderRadius: 22, borderWidth: 1, borderColor: theme.border },
+
+  // Pose studio
+  poseContent: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.base },
+  poseUpload: { borderRadius: BorderRadius.lg, overflow: 'hidden', borderWidth: 1.5, borderStyle: 'dashed', borderColor: theme.borderLight, marginBottom: Spacing.base, backgroundColor: theme.surface },
   poseUploadPlaceholder: { alignItems: 'center', paddingVertical: Spacing['3xl'] },
-  poseUploadText: { fontSize: FontSize.sm, color: Colors.light.textSecondary, marginTop: Spacing.sm },
+  poseUploadIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: theme.goldMuted, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.sm },
+  poseUploadText: { fontSize: FontSize.sm, color: theme.textSecondary },
   poseUploadImage: { width: '100%', height: 200, resizeMode: 'cover' },
-  poseGridTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.light.charcoal, marginBottom: Spacing.md },
+  poseCategoryScroll: { marginBottom: Spacing.md },
+  poseCategoryRow: { gap: Spacing.sm },
+  poseCatChip: { paddingHorizontal: Spacing.base, paddingVertical: 8, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.surface },
+  poseCatChipActive: { backgroundColor: theme.gold, borderColor: theme.gold },
+  poseCatText: { fontSize: FontSize.sm, color: theme.textSecondary, fontWeight: '500' },
+  poseCatTextActive: { color: theme.textInverse, fontWeight: '600' },
+  poseGridTitle: { fontSize: FontSize.sm, fontWeight: '700', color: theme.textSecondary, marginBottom: Spacing.md },
   poseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  poseGridItem: {
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-    position: 'relative',
-    borderWidth: 3,
-    borderColor: 'transparent',
-  },
-  poseGridItemSelected: { borderColor: Colors.light.gold },
+  poseGridItem: { borderRadius: BorderRadius.md, overflow: 'hidden', position: 'relative', borderWidth: 2, borderColor: 'transparent' },
+  poseGridItemSelected: { borderColor: theme.gold },
   poseGridImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  poseGridOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 6,
-    paddingBottom: 6,
-    paddingTop: 20,
-  },
+  poseGridPlaceholder: { backgroundColor: theme.surface, justifyContent: 'center', alignItems: 'center' },
+  poseGridOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 6, paddingBottom: 6, paddingTop: 20 },
   poseGridName: { fontSize: 10, fontWeight: '600', color: '#fff' },
-  poseCheck: { position: 'absolute', top: 6, right: 6 },
-  generatePoseButton: {
-    marginTop: Spacing.xl,
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-    shadowColor: '#c9a96e',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  generatePoseGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.base,
-  },
-  generatePoseText: { fontSize: FontSize.md, fontWeight: '700', color: '#1a1a2e' },
+  poseCheck: { position: 'absolute', top: 4, right: 4 },
+  premiumBadge: { position: 'absolute', top: 4, left: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
 });

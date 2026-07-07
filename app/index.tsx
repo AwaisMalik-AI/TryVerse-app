@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/lib/auth';
-import { Colors } from '@/constants/theme';
+import { theme } from '@/constants/theme';
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -20,7 +20,12 @@ export default function IndexScreen() {
 
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={Colors.light.gold} />
+      <Image
+        source={require('@/assets/images/icon.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+      <ActivityIndicator size="large" color={theme.gold} style={styles.loader} />
     </View>
   );
 }
@@ -30,6 +35,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.background,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    marginBottom: 32,
+  },
+  loader: {
+    marginTop: 16,
   },
 });

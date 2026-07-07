@@ -25,7 +25,13 @@ export async function removeToken(): Promise<void> {
 
 export async function getUser(): Promise<Record<string, unknown> | null> {
   const data = await SecureStore.getItemAsync(USER_KEY);
-  return data ? JSON.parse(data) : null;
+  if (!data) return null;
+  try {
+    return JSON.parse(data);
+  } catch {
+    await SecureStore.deleteItemAsync(USER_KEY);
+    return null;
+  }
 }
 
 export async function setUser(user: Record<string, unknown>): Promise<void> {
@@ -142,7 +148,8 @@ export async function apiUpload(
 
     const filename = fileUri.split('/').pop() || 'photo.jpg';
     const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    const ext = match ? match[1].toLowerCase() : 'jpeg';
+    const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
     formData.append(fieldName, {
       uri: fileUri,

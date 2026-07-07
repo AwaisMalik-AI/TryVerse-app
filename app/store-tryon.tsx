@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { sendLocalNotification } from '@/lib/notifications';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
+import { theme, Gradients, Spacing, FontSize, BorderRadius } from '@/constants/theme';
 import { apiGet, apiFetch, apiUpload, API_URL } from '@/lib/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GeneratingOverlay } from '@/components/GeneratingOverlay';
@@ -58,11 +58,17 @@ export default function StoreTryOnScreen() {
   }, [productId]);
 
   const loadProduct = async () => {
-    if (!productId || !storeId) return;
+    if (!productId || !storeId) {
+      setLoading(false);
+      return;
+    }
     const res = await apiGet<Product[]>(`/api/store/brands/${storeId}/products`);
     if (res.ok && res.data) {
       const found = res.data.find((p) => p.id === parseInt(productId));
       if (found) setProduct(found);
+      else Alert.alert('Not Found', 'This product could not be found.');
+    } else {
+      Alert.alert('Error', 'Could not load product details.');
     }
     setLoading(false);
   };
@@ -180,7 +186,7 @@ export default function StoreTryOnScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.light.gold} />
+        <ActivityIndicator size="large" color={theme.gold} />
       </View>
     );
   }
@@ -192,7 +198,7 @@ export default function StoreTryOnScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={Colors.light.charcoal} />
+            <Ionicons name="arrow-back" size={24} color={theme.text} />
           </Pressable>
           <Text style={styles.headerTitle}>Store Try-On</Text>
           <View style={{ width: 44 }} />
@@ -239,13 +245,13 @@ export default function StoreTryOnScreen() {
                 <Image source={{ uri: selfieUri }} style={styles.selfiePreview} />
                 {isUploading && (
                   <View style={styles.overlay}>
-                    <ActivityIndicator size="large" color="#fff" />
+                    <ActivityIndicator size="large" color={theme.text} />
                   </View>
                 )}
               </View>
             ) : (
               <View style={styles.uploadPlaceholder}>
-                <Ionicons name="camera-outline" size={32} color={Colors.light.gold} />
+                <Ionicons name="camera-outline" size={32} color={theme.gold} />
                 <Text style={styles.uploadText}>Upload your photo</Text>
               </View>
             )}
@@ -259,18 +265,18 @@ export default function StoreTryOnScreen() {
             disabled={isGenerating || !sessionId}
             style={[styles.generateButton, (!sessionId || isGenerating) && { opacity: 0.5 }]}>
             <LinearGradient
-              colors={sessionId ? ['#c9a96e', '#e8c98a'] : ['#d1d5db', '#e5e7eb']}
+              colors={sessionId ? Gradients.gold : [theme.border, theme.borderLight]}
               style={styles.generateGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}>
               {isGenerating ? (
                 <>
-                  <ActivityIndicator color="#1a1a2e" />
+                  <ActivityIndicator color={theme.textInverse} />
                   <Text style={styles.generateText}>Generating...</Text>
                 </>
               ) : (
                 <>
-                  <Ionicons name="sparkles" size={20} color="#1a1a2e" />
+                  <Ionicons name="sparkles" size={20} color={theme.textInverse} />
                   <Text style={styles.generateText}>Try It On</Text>
                 </>
               )}
@@ -291,8 +297,8 @@ export default function StoreTryOnScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: theme.background },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background },
   scrollContent: { paddingHorizontal: Spacing.xl },
   header: {
     flexDirection: 'row',
@@ -304,54 +310,54 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: theme.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.light.charcoal },
+  headerTitle: { fontSize: FontSize.md, fontWeight: '700', color: theme.text },
   productCard: {
     flexDirection: 'row',
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: theme.surface,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
     marginBottom: Spacing.xl,
   },
   productImage: { width: 100, height: 120, resizeMode: 'cover' },
   productInfo: { flex: 1, padding: Spacing.md, justifyContent: 'center' },
-  productName: { fontSize: FontSize.base, fontWeight: '600', color: Colors.light.charcoal },
-  productPrice: { fontSize: FontSize.base, fontWeight: '700', color: Colors.light.gold, marginTop: 4 },
+  productName: { fontSize: FontSize.base, fontWeight: '600', color: theme.text },
+  productPrice: { fontSize: FontSize.base, fontWeight: '700', color: theme.gold, marginTop: 4 },
   sizesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: Spacing.sm },
   sizeChip: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: theme.border,
   },
   sizeChipUnavailable: { opacity: 0.4 },
-  sizeChipText: { fontSize: 10, color: Colors.light.charcoal },
+  sizeChipText: { fontSize: 10, color: theme.text },
   sizeChipTextUnavailable: { textDecorationLine: 'line-through' },
   uploadArea: {
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: Colors.light.border,
+    borderColor: theme.border,
     marginBottom: Spacing.xl,
   },
   uploadPlaceholder: { alignItems: 'center', paddingVertical: Spacing['3xl'] },
-  uploadText: { fontSize: FontSize.sm, color: Colors.light.textSecondary, marginTop: Spacing.sm },
+  uploadText: { fontSize: FontSize.sm, color: theme.textSecondary, marginTop: Spacing.sm },
   selfiePreview: { width: '100%', height: 250, resizeMode: 'cover' },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: theme.overlayLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   generateButton: {
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
-    shadowColor: '#c9a96e',
+    shadowColor: theme.gold,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
@@ -364,5 +370,5 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.base,
   },
-  generateText: { fontSize: FontSize.md, fontWeight: '700', color: '#1a1a2e' },
+  generateText: { fontSize: FontSize.md, fontWeight: '700', color: theme.textInverse },
 });

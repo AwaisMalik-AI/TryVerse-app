@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,27 +8,18 @@ import {
   useWindowDimensions,
   Image,
   ImageBackground,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius, Gradients, TAB_BAR_SPACER } from '@/constants/theme';
+import { theme, Spacing, FontSize, BorderRadius, Gradients, TAB_BAR_SPACER, Shadows } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
-import { ProUpgradeModal } from '@/components/ProUpgradeModal';
 import { useAuth } from '@/lib/auth';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const features = [
-  {
-    id: 'shop',
-    title: 'AI Fashion\nStore',
-    description: 'Browse & try on curated items',
-    icon: 'storefront-outline' as const,
-    route: '/(tabs)/shop' as const,
-    gradient: Gradients.storeCard,
-    bgImage: require('@/assets/images/poses/coffee-shop.jpg'),
-  },
   {
     id: 'tryon',
     title: 'Virtual\nTry-On',
@@ -37,6 +28,15 @@ const features = [
     route: '/(tabs)/tryon' as const,
     gradient: Gradients.tryonCard,
     bgImage: require('@/assets/images/poses/confident-standing.jpg'),
+  },
+  {
+    id: 'shop',
+    title: 'Fashion\nStore',
+    description: 'Browse & try curated items',
+    icon: 'storefront-outline' as const,
+    route: '/(tabs)/shop' as const,
+    gradient: Gradients.shopCard,
+    bgImage: require('@/assets/images/poses/coffee-shop.jpg'),
   },
   {
     id: 'stylist',
@@ -56,33 +56,50 @@ const features = [
     gradient: Gradients.poseCard,
     bgImage: require('@/assets/images/poses/model-turn.jpg'),
   },
+  {
+    id: 'video',
+    title: 'Video\nStudio',
+    description: 'AI showcase videos',
+    icon: 'videocam-outline' as const,
+    route: '/video-studio' as const,
+    gradient: Gradients.videoCard,
+    bgImage: require('@/assets/images/poses/action-stride.jpg'),
+  },
+  {
+    id: 'history',
+    title: 'My\nHistory',
+    description: 'View past generations',
+    icon: 'time-outline' as const,
+    route: '/history' as const,
+    gradient: Gradients.charcoal,
+    bgImage: require('@/assets/images/poses/dramatic-profile.jpg'),
+  },
 ];
 
 const quickActions = [
-  { id: 'upload', icon: 'camera' as const, label: 'Take\nSelfie', color: '#c9a96e' },
+  { id: 'upload', icon: 'camera' as const, label: 'Take\nSelfie', color: theme.gold },
   { id: 'url', icon: 'link' as const, label: 'Paste\nURL', color: '#8b6cc7' },
-  { id: 'stylist', icon: 'sparkles' as const, label: 'AI\nStylist', color: '#e8618c' },
-  { id: 'measure', icon: 'body' as const, label: 'My\nSize', color: '#6b9b7a' },
+  { id: 'video', icon: 'videocam' as const, label: 'Video\nStudio', color: '#e8618c' },
+  { id: 'history', icon: 'time' as const, label: 'My\nHistory', color: '#22c55e' },
 ];
 
 export default function HomeScreen() {
   const { user, refreshUser } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const CARD_WIDTH = (width - Spacing.xl * 2 - Spacing.md) / 2;
-  const [showProPopup, setShowProPopup] = useState(false);
-  const [proChecked, setProChecked] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    refreshUser().finally(() => setProChecked(true));
+    refreshUser();
   }, []);
 
-  useEffect(() => {
-    if (proChecked && user && !user.is_pro) {
-      const timer = setTimeout(() => setShowProPopup(true), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [proChecked, user]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshUser();
+    setRefreshing(false);
+  }, [refreshUser]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -94,110 +111,104 @@ export default function HomeScreen() {
   const firstName = user?.full_name?.split(' ')[0] || 'there';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
-        {/* Header with logo */}
-        <Animated.View entering={FadeInDown.delay(100)} style={styles.header}>
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.sm }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.gold}
+            colors={[theme.gold]}
+            progressBackgroundColor={theme.surface}
+          />
+        }
+      >
+        {/* Header */}
+        <Animated.View entering={FadeInDown.delay(50)} style={styles.header}>
           <View style={styles.headerLeft}>
             <Logo size="sm" />
-            <Text style={styles.greeting} numberOfLines={1}>{getGreeting()}, <Text style={styles.userName}>{firstName}</Text></Text>
-            <Text style={styles.welcomeSub} numberOfLines={1}>Ready to try something new today?</Text>
+            <Text style={styles.greeting}>
+              {getGreeting()},{' '}
+              <Text style={styles.userName}>{firstName}</Text>
+            </Text>
           </View>
           <Pressable
             onPress={() => router.push('/(tabs)/profile')}
-            style={styles.avatarButton}>
-            <LinearGradient
-              colors={['#c9a96e', '#e8c98a']}
-              style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {firstName.charAt(0).toUpperCase()}
-              </Text>
+            style={({ pressed }) => [styles.avatarButton, { opacity: pressed ? 0.8 : 1 }]}
+          >
+            <LinearGradient colors={Gradients.gold} style={styles.avatar}>
+              <Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text>
             </LinearGradient>
           </Pressable>
         </Animated.View>
 
-        {/* Hero Banner with slogan */}
-        <Animated.View entering={FadeInDown.delay(150)}>
+        {/* Hero banner */}
+        <Animated.View entering={FadeInDown.delay(100)}>
           <ImageBackground
             source={require('@/assets/images/poses/sunlight-portrait.jpg')}
             style={styles.heroBanner}
-            imageStyle={styles.heroBannerImage}>
+            imageStyle={styles.heroBannerImage}
+          >
             <LinearGradient
-              colors={['rgba(26,26,46,0.75)', 'rgba(201,169,110,0.6)']}
+              colors={['rgba(10,10,20,0.6)', 'rgba(201,169,110,0.45)']}
               style={styles.heroOverlay}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}>
-              <Logo size="md" light />
+              end={{ x: 1, y: 1 }}
+            >
               <Text style={styles.heroSlogan}>Try It Before You Buy It</Text>
               <Text style={styles.heroSub}>AI-powered virtual try-on for every outfit</Text>
-              <View style={styles.heroPrivacy}>
-                <Ionicons name="shield-checkmark-outline" size={14} color="rgba(255,255,255,0.7)" />
-                <Text style={styles.heroPrivacyText}>Your photos are never saved</Text>
+              <View style={styles.heroBadge}>
+                <Ionicons name="shield-checkmark" size={12} color={theme.gold} />
+                <Text style={styles.heroBadgeText}>Photos are never saved</Text>
               </View>
             </LinearGradient>
           </ImageBackground>
         </Animated.View>
 
-        {/* Pro/Free banner */}
-        {user?.is_pro ? (
-          <Animated.View entering={FadeInDown.delay(200)}>
-            <LinearGradient
-              colors={['#1a1a2e', '#2d2d3f']}
-              style={styles.proBanner}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}>
-              <View style={styles.proBannerContent}>
-                <View style={styles.proMemberIconBg}>
-                  <Ionicons name="trophy" size={20} color="#e8c98a" />
+        {/* Plan banner */}
+        <Animated.View entering={FadeInDown.delay(150)}>
+          <Pressable
+            onPress={() => router.push('/(tabs)/profile')}
+            style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+          >
+            <View style={styles.planBanner}>
+              <View style={styles.planLeft}>
+                <View style={styles.planIconBg}>
+                  <Ionicons
+                    name={user?.is_pro ? 'trophy' : 'diamond-outline'}
+                    size={18}
+                    color={theme.goldLight}
+                  />
                 </View>
-                <View style={styles.proBannerText}>
-                  <Text style={styles.proBannerTitle}>You're a Pro Member</Text>
-                  <Text style={styles.proBannerDesc}>Unlimited generations · No watermarks</Text>
+                <View>
+                  <Text style={styles.planTitle}>
+                    {user?.is_pro ? 'Pro Member' : 'Upgrade to Pro'}
+                  </Text>
+                  <Text style={styles.planDesc}>
+                    {user?.is_pro ? 'Unlimited generations' : 'Unlock all premium features'}
+                  </Text>
                 </View>
               </View>
-              <View style={styles.proBadges}>
-                <View style={styles.proBadgePill}>
-                  <Ionicons name="infinite" size={12} color="#e8c98a" />
-                  <Text style={styles.proBadgePillText}>Unlimited</Text>
-                </View>
-              </View>
-            </LinearGradient>
-          </Animated.View>
-        ) : (
-          <Animated.View entering={FadeInDown.delay(200)}>
-            <Pressable onPress={() => setShowProPopup(true)}>
-              <LinearGradient
-                colors={['#1a1a2e', '#2d2d3f']}
-                style={styles.proBanner}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}>
-                <View style={styles.proBannerContent}>
-                  <Logo size="sm" light showText={false} />
-                  <View style={styles.proBannerText}>
-                    <Text style={styles.proBannerTitle}>Upgrade to Pro</Text>
-                    <Text style={styles.proBannerDesc}>Unlimited try-ons, no watermarks</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#e8c98a" />
-              </LinearGradient>
-            </Pressable>
-          </Animated.View>
-        )}
+              <Ionicons name="chevron-forward" size={18} color={theme.goldLight} />
+            </View>
+          </Pressable>
+        </Animated.View>
 
-        {/* Quick Actions */}
-        <Animated.View entering={FadeInDown.delay(300)} style={styles.quickActionsRow}>
+        {/* Quick actions */}
+        <Animated.View entering={FadeInDown.delay(200)} style={styles.quickActionsRow}>
           {quickActions.map((action) => (
             <Pressable
               key={action.id}
               onPress={() => {
                 if (action.id === 'upload' || action.id === 'url') router.push('/(tabs)/tryon');
-                else if (action.id === 'stylist') router.push('/(tabs)/style');
-                else if (action.id === 'measure') router.push('/(tabs)/profile');
+                else if (action.id === 'video') router.push('/video-studio' as any);
+                else if (action.id === 'history') router.push('/history' as any);
               }}
-              style={styles.quickAction}>
-              <View style={[styles.quickActionIcon, { backgroundColor: action.color + '15' }]}>
+              style={({ pressed }) => [styles.quickAction, { opacity: pressed ? 0.7 : 1 }]}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: action.color + '18' }]}>
                 <Ionicons name={action.icon} size={22} color={action.color} />
               </View>
               <Text style={styles.quickActionLabel}>{action.label}</Text>
@@ -205,35 +216,41 @@ export default function HomeScreen() {
           ))}
         </Animated.View>
 
-        {/* Feature Cards */}
-        <Animated.View entering={FadeInDown.delay(400)} style={styles.sectionHeader}>
+        {/* Feature cards */}
+        <Animated.View entering={FadeInDown.delay(300)} style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Features</Text>
         </Animated.View>
 
         <View style={styles.featureGrid}>
           {features.map((feature, index) => (
-            <Animated.View
-              key={feature.id}
-              entering={FadeInDown.delay(450 + index * 80)}>
+            <Animated.View key={feature.id} entering={FadeInDown.delay(350 + index * 60)}>
               <Pressable
-                onPress={() => router.push(feature.route)}
-                style={[styles.featureCardWrapper, { width: CARD_WIDTH }]}>
+                onPress={() => router.push(feature.route as any)}
+                style={({ pressed }) => [
+                  styles.featureCardWrapper,
+                  { width: CARD_WIDTH, opacity: pressed ? 0.9 : 1 },
+                ]}
+              >
                 <ImageBackground
                   source={feature.bgImage}
                   style={[styles.featureCard, { width: CARD_WIDTH, height: CARD_WIDTH * 1.15 }]}
-                  imageStyle={styles.featureCardBgImage}>
+                  imageStyle={styles.featureCardBgImage}
+                >
                   <LinearGradient
                     colors={[feature.gradient[0] + 'DD', feature.gradient[1] + 'EE']}
                     style={styles.featureCardOverlay}
                     start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}>
+                    end={{ x: 1, y: 1 }}
+                  >
                     <View style={styles.featureIconBg}>
-                      <Ionicons name={feature.icon} size={24} color="#fff" />
+                      <Ionicons name={feature.icon} size={22} color="#fff" />
                     </View>
-                    <Text style={styles.featureTitle}>{feature.title}</Text>
-                    <Text style={styles.featureDesc}>{feature.description}</Text>
+                    <View>
+                      <Text style={styles.featureTitle}>{feature.title}</Text>
+                      <Text style={styles.featureDesc}>{feature.description}</Text>
+                    </View>
                     <View style={styles.featureArrow}>
-                      <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
+                      <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.9)" />
                     </View>
                   </LinearGradient>
                 </ImageBackground>
@@ -242,18 +259,19 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* Pose Previews */}
-        <Animated.View entering={FadeInDown.delay(700)} style={styles.sectionHeader}>
+        {/* Pose previews */}
+        <Animated.View entering={FadeInDown.delay(600)} style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Pose Studio</Text>
-          <Pressable onPress={() => router.push('/(tabs)/style?tab=poses')}>
-            <Text style={styles.seeAll}>See all</Text>
+          <Pressable onPress={() => router.push('/(tabs)/style?tab=poses' as any)}>
+            <Text style={styles.seeAll}>See all →</Text>
           </Pressable>
         </Animated.View>
 
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.poseScroll}>
+          contentContainerStyle={styles.poseScroll}
+        >
           {[
             { name: 'Confident\nStanding', img: require('@/assets/images/poses/confident-standing.jpg') },
             { name: 'Executive\nWalk', img: require('@/assets/images/poses/executive-walk.jpg') },
@@ -261,14 +279,16 @@ export default function HomeScreen() {
             { name: 'Model\nTurn', img: require('@/assets/images/poses/model-turn.jpg') },
             { name: 'Street\nStroll', img: require('@/assets/images/poses/street-stroll.jpg') },
           ].map((pose, i) => (
-            <Animated.View key={i} entering={FadeInRight.delay(750 + i * 80)}>
+            <Animated.View key={i} entering={FadeInRight.delay(650 + i * 60)}>
               <Pressable
-                onPress={() => router.push('/(tabs)/style?tab=poses')}
-                style={styles.poseCard}>
+                onPress={() => router.push('/(tabs)/style?tab=poses' as any)}
+                style={({ pressed }) => [styles.poseCard, { opacity: pressed ? 0.85 : 1 }]}
+              >
                 <Image source={pose.img} style={styles.poseImage} />
                 <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.7)']}
-                  style={styles.poseOverlay}>
+                  colors={['transparent', 'rgba(0,0,0,0.8)']}
+                  style={styles.poseOverlay}
+                >
                   <Text style={styles.poseName}>{pose.name}</Text>
                 </LinearGradient>
               </Pressable>
@@ -278,43 +298,61 @@ export default function HomeScreen() {
 
         <View style={{ height: TAB_BAR_SPACER }} />
       </ScrollView>
-      <ProUpgradeModal visible={showProPopup} onClose={() => setShowProPopup(false)} />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  scrollContent: { paddingHorizontal: Spacing.xl },
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+  },
+
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: Spacing.base,
     marginBottom: Spacing.base,
   },
-  headerLeft: { flex: 1, marginRight: Spacing.md },
-  greeting: { fontSize: FontSize.sm, color: Colors.light.textSecondary, fontWeight: '500' },
-  welcomeSub: {
-    fontSize: FontSize.xs,
-    color: Colors.light.textMuted,
-    marginTop: 2,
+  headerLeft: {
+    flex: 1,
+    marginRight: Spacing.md,
+    gap: 4,
   },
-  userName: { fontWeight: '800', color: Colors.light.charcoal },
+  greeting: {
+    fontSize: FontSize.sm,
+    color: theme.textSecondary,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  userName: {
+    fontWeight: '800',
+    color: theme.text,
+  },
   avatarButton: {},
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { fontSize: FontSize.lg, fontWeight: '700', color: '#1a1a2e' },
+  avatarText: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: theme.textInverse,
+  },
+
+  // Hero
   heroBanner: {
-    height: 160,
+    height: 150,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.base,
   },
   heroBannerImage: {
     borderRadius: BorderRadius.xl,
@@ -331,9 +369,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#fff',
     textAlign: 'center',
-    marginTop: Spacing.sm,
     letterSpacing: -0.3,
-    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
@@ -343,58 +380,69 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
-  heroPrivacy: {
+  heroBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     marginTop: Spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     paddingHorizontal: Spacing.md,
     paddingVertical: 4,
     borderRadius: BorderRadius.full,
   },
-  heroPrivacyText: {
+  heroBadgeText: {
     fontSize: 10,
     color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
   },
-  proBanner: {
+
+  // Plan banner
+  planBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.base,
+    backgroundColor: theme.surfaceElevated,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
     borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.goldBorder,
   },
-  proBannerContent: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 },
-  proBannerText: { flex: 1 },
-  proBannerTitle: { fontSize: FontSize.base, fontWeight: '700', color: '#e8c98a' },
-  proBannerDesc: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
-  proMemberIconBg: {
-    width: 40,
-    height: 40,
+  planLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  planIconBg: {
+    width: 36,
+    height: 36,
     borderRadius: 12,
-    backgroundColor: 'rgba(232,201,138,0.15)',
+    backgroundColor: theme.goldMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  proBadges: { flexDirection: 'row', gap: 4, marginLeft: Spacing.sm },
-  proBadgePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(232,201,138,0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+  planTitle: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: theme.goldLight,
   },
-  proBadgePillText: { fontSize: 10, fontWeight: '600', color: '#e8c98a' },
+  planDesc: {
+    fontSize: FontSize.xs,
+    color: theme.textMuted,
+    marginTop: 1,
+  },
+
+  // Quick actions
   quickActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: Spacing.xl,
   },
-  quickAction: { alignItems: 'center', flex: 1 },
+  quickAction: {
+    alignItems: 'center',
+    flex: 1,
+  },
   quickActionIcon: {
     width: 52,
     height: 52,
@@ -402,22 +450,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.xs,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   quickActionLabel: {
     fontSize: FontSize.xs,
-    color: Colors.light.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
     fontWeight: '500',
     lineHeight: 14,
   },
+
+  // Sections
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.base,
+    marginBottom: Spacing.md,
   },
-  sectionTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.light.charcoal },
-  seeAll: { fontSize: FontSize.sm, color: Colors.light.gold, fontWeight: '600' },
+  sectionTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: '700',
+    color: theme.text,
+  },
+  seeAll: {
+    fontSize: FontSize.sm,
+    color: theme.gold,
+    fontWeight: '600',
+  },
+
+  // Feature grid
   featureGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -427,14 +489,9 @@ const styles = StyleSheet.create({
   featureCardWrapper: {
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    ...Shadows.md,
   },
-  featureCard: {
-  },
+  featureCard: {},
   featureCardBgImage: {
     borderRadius: BorderRadius.xl,
   },
@@ -445,32 +502,54 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   featureIconBg: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  featureTitle: { fontSize: FontSize.md, fontWeight: '700', color: '#fff', lineHeight: 22 },
-  featureDesc: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.85)', lineHeight: 16 },
+  featureTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: '#fff',
+    lineHeight: 22,
+  },
+  featureDesc: {
+    fontSize: FontSize.xs,
+    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 16,
+    marginTop: 2,
+  },
   featureArrow: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'flex-end',
   },
-  poseScroll: { paddingRight: Spacing.xl, gap: Spacing.md },
+
+  // Poses
+  poseScroll: {
+    paddingRight: Spacing.xl,
+    gap: Spacing.md,
+    marginBottom: Spacing.base,
+  },
   poseCard: {
-    width: 130,
-    height: 180,
+    width: 120,
+    height: 165,
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.border,
   },
-  poseImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  poseImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
   poseOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -478,7 +557,12 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,
-    paddingTop: Spacing['2xl'],
+    paddingTop: Spacing['3xl'],
   },
-  poseName: { fontSize: FontSize.xs, fontWeight: '600', color: '#fff', lineHeight: 14 },
+  poseName: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    color: '#fff',
+    lineHeight: 14,
+  },
 });

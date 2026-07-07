@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   Pressable,
   KeyboardAvoidingView,
@@ -10,7 +9,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Image,
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,8 +16,9 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
+import { theme, Spacing, FontSize, BorderRadius, Gradients, Shadows } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
+import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/lib/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -38,20 +37,24 @@ export default function LoginScreen() {
   const [_request, googleResponse, promptAsync] = Google.useAuthRequest({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   });
 
   useEffect(() => {
-    if (googleResponse?.type === 'success') {
+    if (!googleResponse) return;
+    if (googleResponse.type === 'success') {
       const idToken = googleResponse.authentication?.idToken;
       if (idToken) {
         handleGoogleToken(idToken);
       } else {
         setIsGoogleLoading(false);
-        Alert.alert('Google Sign-In', 'Could not get authentication token. Please try again.');
+        Alert.alert('Google Sign-In', 'Could not get authentication token.');
       }
-    } else if (googleResponse?.type === 'error') {
+    } else if (googleResponse.type === 'error') {
       setIsGoogleLoading(false);
       Alert.alert('Google Sign-In Failed', 'Authentication was cancelled or failed.');
+    } else if (googleResponse.type === 'dismiss' || googleResponse.type === 'cancel') {
+      setIsGoogleLoading(false);
     }
   }, [googleResponse]);
 
@@ -93,58 +96,48 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      {/* Subtle background image */}
-      <Image
-        source={require('@/assets/images/poses/sunlight-portrait.jpg')}
-        style={styles.bgImage}
-        resizeMode="cover"
-      />
-      <View style={styles.bgOverlay} />
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 24 },
+        ]}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        {/* Logo area */}
-        <Animated.View entering={FadeInDown.delay(100)} style={styles.logoArea}>
-          <Logo size="lg" />
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Logo */}
+        <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.logoArea}>
+          <Logo size="xl" />
           <Text style={styles.tagline}>Try It Before You Buy It</Text>
         </Animated.View>
 
-        {/* Form */}
-        <Animated.View entering={FadeInDown.delay(200)} style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color={Colors.light.textMuted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email address"
-              placeholderTextColor={Colors.light.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+        {/* Welcome text */}
+        <Animated.View entering={FadeInDown.delay(150).springify()} style={styles.welcomeArea}>
+          <Text style={styles.welcomeTitle}>Welcome Back</Text>
+          <Text style={styles.welcomeSubtitle}>Sign in to your account</Text>
+        </Animated.View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color={Colors.light.textMuted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor={Colors.light.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-            />
-            <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
-              <Ionicons
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={20}
-                color={Colors.light.textSecondary}
-              />
-            </Pressable>
-          </View>
+        {/* Form */}
+        <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.form}>
+          <Input
+            icon="mail-outline"
+            placeholder="Email address"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Input
+            icon="lock-closed-outline"
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            rightIcon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            onRightIconPress={() => setShowPassword(!showPassword)}
+          />
 
           <Link href="/(auth)/forgot-password" asChild>
             <Pressable style={styles.forgotButton}>
@@ -152,14 +145,22 @@ export default function LoginScreen() {
             </Pressable>
           </Link>
 
-          <Pressable onPress={handleLogin} disabled={isLoading} style={styles.loginButton}>
+          <Pressable
+            onPress={handleLogin}
+            disabled={isLoading}
+            style={({ pressed }) => [
+              styles.loginButton,
+              { opacity: pressed ? 0.85 : isLoading ? 0.6 : 1 },
+            ]}
+          >
             <LinearGradient
-              colors={['#c9a96e', '#e8c98a']}
+              colors={Gradients.gold}
               style={styles.loginButtonGradient}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}>
+              end={{ x: 1, y: 0 }}
+            >
               {isLoading ? (
-                <ActivityIndicator color="#1a1a2e" />
+                <ActivityIndicator color={theme.textInverse} />
               ) : (
                 <Text style={styles.loginButtonText}>Sign In</Text>
               )}
@@ -168,31 +169,32 @@ export default function LoginScreen() {
         </Animated.View>
 
         {/* Divider */}
-        <Animated.View entering={FadeInDown.delay(300)} style={styles.dividerRow}>
+        <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.dividerRow}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
+          <Text style={styles.dividerText}>or continue with</Text>
           <View style={styles.dividerLine} />
         </Animated.View>
 
-        {/* Google login */}
-        <Animated.View entering={FadeInDown.delay(350)}>
+        {/* Google */}
+        <Animated.View entering={FadeInDown.delay(350).springify()}>
           <Pressable
-            style={styles.googleButton}
+            style={({ pressed }) => [styles.googleButton, { opacity: pressed ? 0.8 : 1 }]}
             onPress={handleGoogleLogin}
-            disabled={isGoogleLoading || isLoading}>
+            disabled={isGoogleLoading || isLoading}
+          >
             {isGoogleLoading ? (
-              <ActivityIndicator color={Colors.light.charcoal} size="small" />
+              <ActivityIndicator color={theme.text} size="small" />
             ) : (
               <>
-                <Ionicons name="logo-google" size={20} color={Colors.light.charcoal} />
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
+                <Ionicons name="logo-google" size={20} color={theme.text} />
+                <Text style={styles.googleButtonText}>Google</Text>
               </>
             )}
           </Pressable>
         </Animated.View>
 
         {/* Sign up link */}
-        <Animated.View entering={FadeInDown.delay(400)} style={styles.signupRow}>
+        <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.signupRow}>
           <Text style={styles.signupText}>Don't have an account? </Text>
           <Link href="/(auth)/signup" asChild>
             <Pressable>
@@ -201,10 +203,10 @@ export default function LoginScreen() {
           </Link>
         </Animated.View>
 
-        {/* Privacy reassurance */}
-        <Animated.View entering={FadeInDown.delay(450)} style={styles.privacyRow}>
-          <Ionicons name="shield-checkmark-outline" size={16} color={Colors.light.textMuted} />
-          <Text style={styles.privacyText}>We never save your photos</Text>
+        {/* Privacy */}
+        <Animated.View entering={FadeInDown.delay(450).springify()} style={styles.privacyRow}>
+          <Ionicons name="shield-checkmark-outline" size={14} color={theme.textMuted} />
+          <Text style={styles.privacyText}>Your photos are never saved</Text>
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -214,102 +216,81 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  bgImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  bgOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: theme.background,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
   logoArea: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   tagline: {
     fontSize: FontSize.sm,
-    color: Colors.light.textSecondary,
+    color: theme.textMuted,
     marginTop: Spacing.xs,
+    fontWeight: '500',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  welcomeArea: {
+    alignItems: 'center',
+    marginBottom: Spacing['2xl'],
+  },
+  welcomeTitle: {
+    fontSize: FontSize['2xl'],
+    fontWeight: '800',
+    color: theme.text,
+    letterSpacing: -0.3,
+  },
+  welcomeSubtitle: {
+    fontSize: FontSize.base,
+    color: theme.textSecondary,
+    marginTop: 4,
   },
   form: {
-    gap: Spacing.sm,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.light.surfaceSecondary,
-    paddingHorizontal: Spacing.base,
-    height: 54,
-  },
-  inputIcon: {
-    marginRight: Spacing.sm,
-  },
-  input: {
-    flex: 1,
-    fontSize: FontSize.base,
-    color: Colors.light.text,
-  },
-  eyeButton: {
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    backgroundColor: Colors.light.surfaceSecondary,
+    gap: 4,
   },
   forgotButton: {
     alignSelf: 'flex-end',
+    marginBottom: Spacing.sm,
   },
   forgotText: {
     fontSize: FontSize.sm,
-    color: Colors.light.gold,
+    color: theme.gold,
     fontWeight: '600',
   },
   loginButton: {
     borderRadius: BorderRadius.md,
     overflow: 'hidden',
-    marginTop: Spacing.sm,
-    shadowColor: '#c9a96e',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    marginTop: Spacing.xs,
+    ...Shadows.gold,
   },
   loginButtonGradient: {
-    paddingVertical: Spacing.base,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   loginButtonText: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.light.charcoal,
+    color: theme.textInverse,
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: Spacing.base,
+    marginVertical: Spacing.lg,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: Colors.light.border,
+    backgroundColor: theme.border,
   },
   dividerText: {
     fontSize: FontSize.sm,
-    color: Colors.light.textMuted,
+    color: theme.textMuted,
     marginHorizontal: Spacing.base,
   },
   googleButton: {
@@ -318,30 +299,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.light.border,
+    borderColor: theme.borderLight,
     borderRadius: BorderRadius.md,
     paddingVertical: 14,
+    backgroundColor: theme.surface,
   },
   googleButtonText: {
     fontSize: FontSize.base,
     fontWeight: '600',
-    color: Colors.light.charcoal,
+    color: theme.text,
   },
   signupRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    marginTop: Spacing.lg,
+    marginTop: Spacing.xl,
   },
   signupText: {
     fontSize: FontSize.base,
-    color: Colors.light.charcoal,
+    color: theme.textSecondary,
     fontWeight: '500',
   },
   signupLink: {
     fontSize: FontSize.base,
-    color: Colors.light.gold,
+    color: theme.gold,
     fontWeight: '700',
   },
   privacyRow: {
@@ -353,8 +334,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   privacyText: {
-    fontSize: FontSize.sm,
-    color: Colors.light.textSecondary,
-    fontWeight: '600',
+    fontSize: FontSize.xs,
+    color: theme.textMuted,
+    fontWeight: '500',
   },
 });

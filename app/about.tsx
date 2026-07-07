@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
+import { theme, Gradients, Spacing, FontSize, BorderRadius } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
 
 const FEATURES = [
@@ -21,12 +21,12 @@ export default function AboutScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.light.charcoal} />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
 
         <Animated.View entering={FadeInDown.delay(100)}>
           <LinearGradient
-            colors={[Colors.light.gold, Colors.light.goldLight]}
+            colors={Gradients.gold}
             style={styles.headerGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}>
@@ -54,7 +54,7 @@ export default function AboutScreen() {
                 entering={FadeInDown.delay(250 + index * 50)}
                 style={styles.featureCard}>
                 <View style={styles.featureIconBg}>
-                  <Ionicons name={feature.icon} size={24} color={Colors.light.gold} />
+                  <Ionicons name={feature.icon} size={24} color={theme.gold} />
                 </View>
                 <Text style={styles.featureLabel}>{feature.label}</Text>
               </Animated.View>
@@ -63,7 +63,7 @@ export default function AboutScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(450)} style={styles.footer}>
-          <Ionicons name="heart" size={18} color={Colors.light.gold} />
+          <Ionicons name="heart" size={18} color={theme.gold} />
           <Text style={styles.footerText}>Made with love</Text>
         </Animated.View>
 
@@ -74,13 +74,13 @@ export default function AboutScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.background },
+  container: { flex: 1, backgroundColor: theme.background },
   scrollContent: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.base },
   backButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: theme.surface,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.lg,
@@ -94,12 +94,13 @@ const styles = StyleSheet.create({
   },
   slogan: {
     fontSize: FontSize.md,
-    color: Colors.light.textSecondary,
+    color: theme.textInverse,
     fontStyle: 'italic',
     marginBottom: Spacing.md,
+    opacity: 0.8,
   },
   versionBadge: {
-    backgroundColor: Colors.light.charcoal + '30',
+    backgroundColor: theme.textInverse + '30',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
@@ -107,19 +108,19 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: FontSize.xs,
     fontWeight: '600',
-    color: Colors.light.charcoal,
+    color: theme.textInverse,
   },
   descriptionCard: {
-    backgroundColor: Colors.light.surface,
+    backgroundColor: theme.card,
     borderRadius: BorderRadius.lg,
     padding: Spacing.xl,
     marginBottom: Spacing.xl,
     borderWidth: 1,
-    borderColor: Colors.light.borderLight,
+    borderColor: theme.borderLight,
   },
   description: {
     fontSize: FontSize.base,
-    color: Colors.light.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 24,
     textAlign: 'center',
   },
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FontSize.xs,
     fontWeight: '700',
-    color: Colors.light.textMuted,
+    color: theme.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: Spacing.md,
@@ -140,18 +141,18 @@ const styles = StyleSheet.create({
   featureCard: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: Colors.light.surface,
+    backgroundColor: theme.card,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.light.borderLight,
+    borderColor: theme.borderLight,
   },
   featureIconBg: {
     width: 48,
     height: 48,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.light.gold + '15',
+    backgroundColor: theme.goldMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.sm,
@@ -159,7 +160,7 @@ const styles = StyleSheet.create({
   featureLabel: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.light.charcoal,
+    color: theme.text,
   },
   footer: {
     flexDirection: 'row',
@@ -170,6 +171,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: FontSize.sm,
-    color: Colors.light.textMuted,
+    color: theme.textMuted,
   },
 });

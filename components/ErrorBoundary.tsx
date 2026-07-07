@@ -1,7 +1,7 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
+import { theme, Spacing, FontSize, BorderRadius } from '@/constants/theme';
 
 interface Props {
   children: ReactNode;
@@ -34,14 +34,14 @@ export class ErrorBoundary extends Component<Props, State> {
         <View style={styles.container}>
           <View style={styles.content}>
             <View style={styles.iconCircle}>
-              <Ionicons name="warning-outline" size={48} color={Colors.light.gold} />
+              <Ionicons name="warning-outline" size={48} color={theme.gold} />
             </View>
             <Text style={styles.title}>Something went wrong</Text>
             <Text style={styles.description}>
               An unexpected error occurred. Please try again.
             </Text>
             <Pressable onPress={this.handleReset} style={styles.button}>
-              <Ionicons name="refresh" size={20} color="#1a1a2e" />
+              <Ionicons name="refresh" size={20} color={theme.textInverse} />
               <Text style={styles.buttonText}>Restart App</Text>
             </Pressable>
           </View>
@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.background,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: Colors.light.gold + '15',
+    backgroundColor: theme.goldMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.xl,
@@ -77,13 +77,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.xl,
     fontWeight: '700',
-    color: Colors.light.charcoal,
+    color: theme.text,
     textAlign: 'center',
     marginBottom: Spacing.sm,
   },
   description: {
     fontSize: FontSize.base,
-    color: Colors.light.textSecondary,
+    color: theme.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: Spacing['2xl'],
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.light.gold,
+    backgroundColor: theme.gold,
     paddingVertical: Spacing.base,
     paddingHorizontal: Spacing['2xl'],
     borderRadius: BorderRadius.md,
@@ -106,6 +106,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: '#1a1a2e',
+    color: theme.textInverse,
   },
 });

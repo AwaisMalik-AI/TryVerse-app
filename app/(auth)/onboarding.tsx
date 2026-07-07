@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,60 +12,64 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
+import { theme, Spacing, FontSize, BorderRadius, Shadows } from '@/constants/theme';
 import { Logo } from '@/components/Logo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const GRADIENT_OPACITY = 0.55;
-
-const slides: {
+interface Slide {
   id: string;
   title: string;
+  highlight: string;
   description: string;
   image: ImageSourcePropType;
-  icon: 'shirt' | 'sparkles' | 'storefront' | 'camera';
+  icon: keyof typeof Ionicons.glyphMap;
+  accent: string;
   gradient: readonly [string, string];
-}[] = [
+}
+
+const slides: Slide[] = [
   {
     id: '1',
-    title: 'Virtual Try-On',
-    description: 'Upload a selfie and see how any outfit looks on you — before you buy',
+    title: 'Virtual',
+    highlight: 'Try-On',
+    description: 'See how any outfit looks on you before you buy — just upload a selfie',
     image: require('@/assets/images/poses/confident-standing.jpg'),
-    icon: 'shirt',
-    gradient: [`rgba(201,169,110,${GRADIENT_OPACITY})`, `rgba(176,141,79,${GRADIENT_OPACITY})`] as const,
+    icon: 'shirt-outline',
+    accent: '#c9a96e',
+    gradient: ['rgba(201,169,110,0.6)', 'rgba(10,10,20,0.95)'] as const,
   },
   {
     id: '2',
-    title: 'AI Fashion Stylist',
-    description: 'Get personalized style advice, trip packing, and outfit ideas — all in one AI assistant',
+    title: 'AI Fashion',
+    highlight: 'Stylist',
+    description: 'Your personal AI stylist — outfit ideas, style advice & wardrobe planning',
     image: require('@/assets/images/poses/business-portrait.jpg'),
-    icon: 'sparkles',
-    gradient: [`rgba(124,58,237,${GRADIENT_OPACITY})`, `rgba(109,84,163,${GRADIENT_OPACITY})`] as const,
+    icon: 'sparkles-outline',
+    accent: '#8b6cc7',
+    gradient: ['rgba(139,108,199,0.6)', 'rgba(10,10,20,0.95)'] as const,
   },
   {
     id: '3',
-    title: 'AI Fashion Store',
-    description: 'Browse curated items from top brands and virtually try them on your photo instantly',
+    title: 'Fashion',
+    highlight: 'Store',
+    description: 'Browse curated collections and try products from top brands instantly',
     image: require('@/assets/images/poses/executive-walk.jpg'),
-    icon: 'storefront',
-    gradient: [`rgba(232,97,140,${GRADIENT_OPACITY})`, `rgba(192,80,122,${GRADIENT_OPACITY})`] as const,
+    icon: 'storefront-outline',
+    accent: '#3b82f6',
+    gradient: ['rgba(59,130,246,0.5)', 'rgba(10,10,20,0.95)'] as const,
   },
   {
     id: '4',
-    title: 'Pose Studio',
-    description: 'Transform your selfies into 20+ professional fashion poses with one tap',
+    title: 'Pose',
+    highlight: 'Studio',
+    description: 'Transform selfies into 40+ professional fashion poses with one tap',
     image: require('@/assets/images/poses/model-turn.jpg'),
-    icon: 'camera',
-    gradient: [`rgba(13,122,82,${GRADIENT_OPACITY})`, `rgba(22,163,74,${GRADIENT_OPACITY})`] as const,
+    icon: 'camera-outline',
+    accent: '#22c55e',
+    gradient: ['rgba(34,197,94,0.5)', 'rgba(10,10,20,0.95)'] as const,
   },
-];
-
-const BUTTON_COLORS: readonly [string, string][] = [
-  ['#c9a96e', '#b08d4f'],
-  ['#7c3aed', '#6e54a3'],
-  ['#e8618c', '#c0507a'],
-  ['#0d7a52', '#16a34a'],
 ];
 
 export default function OnboardingScreen() {
@@ -83,57 +87,63 @@ export default function OnboardingScreen() {
     },
   ).current;
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentIndex < slides.length - 1) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
     } else {
       router.replace('/(auth)/login');
     }
-  };
+  }, [currentIndex, router]);
 
-  const handleSkip = () => {
+  const handleSkip = useCallback(() => {
     router.replace('/(auth)/login');
-  };
+  }, [router]);
 
-  const renderSlide = ({ item }: { item: (typeof slides)[0] }) => (
+  const currentSlide = slides[currentIndex];
+
+  const renderSlide = ({ item }: { item: Slide }) => (
     <View style={[styles.slide, { width }]}>
-      {/* Logo area at very top */}
-      <View style={styles.logoArea}>
-        <Logo size="lg" light />
-        <Text style={styles.slogan}>Try It Before You Buy It</Text>
-      </View>
+      <Image source={item.image} style={styles.bgImage} />
+      <LinearGradient
+        colors={item.gradient}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+      />
 
-      {/* Full background image with semi-transparent gradient overlay */}
-      <View style={[styles.imageArea, { minHeight: height * 0.45 }]}>
-        <Image source={item.image} style={styles.bgImage} />
-        <LinearGradient
-          colors={item.gradient}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
-        {/* Feature icon in glass-morphism circle */}
-        <View style={styles.badgeContainer}>
-          <View style={styles.glassBadge}>
-            <Ionicons name={item.icon} size={32} color="#fff" />
+      {/* Content layered on image */}
+      <View style={[styles.slideContent, { paddingTop: insets.top + 16, paddingBottom: 200 }]}>
+        {/* Top: Logo + Skip */}
+        <View style={styles.topBar}>
+          <Logo size="md" />
+          <Pressable onPress={handleSkip} style={styles.skipPill}>
+            <Text style={styles.skipText}>Skip</Text>
+          </Pressable>
+        </View>
+
+        {/* Center: Glass icon badge */}
+        <View style={styles.centerArea}>
+          <View style={[styles.glassBadge, { borderColor: item.accent + '60' }]}>
+            <View style={[styles.innerBadge, { backgroundColor: item.accent + '25' }]}>
+              <Ionicons name={item.icon} size={36} color={item.accent} />
+            </View>
           </View>
         </View>
-        <Text style={styles.slideTitle}>{item.title}</Text>
-        <Text style={styles.slideDescription}>{item.description}</Text>
-      </View>
 
-      {/* Privacy note */}
-      <Text style={styles.privacyNote}>Your photos are never saved</Text>
+        {/* Bottom: Title + Description */}
+        <View style={styles.textArea}>
+          <Text style={styles.slideTitle}>
+            {item.title}{' '}
+            <Text style={[styles.slideHighlight, { color: item.accent }]}>{item.highlight}</Text>
+          </Text>
+          <Text style={styles.slideDescription}>{item.description}</Text>
+        </View>
+      </View>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      {/* Skip button */}
-      <Pressable onPress={handleSkip} style={[styles.skipButton, { top: insets.top + 12 }]}>
-        <Text style={styles.skipText}>Skip</Text>
-      </Pressable>
-
       <FlatList
         ref={flatListRef}
         data={slides}
@@ -146,28 +156,31 @@ export default function OnboardingScreen() {
         viewabilityConfig={{ viewAreaCoveragePercentThreshold: 50 }}
       />
 
-      {/* Bottom area */}
-      <View style={[styles.bottomArea, { paddingBottom: Math.max(insets.bottom, 20) + 10 }]}>
+      {/* Bottom controls */}
+      <View style={[styles.bottomArea, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
+        {/* Dots */}
         <View style={styles.dotsRow}>
-          {slides.map((_, i) => (
+          {slides.map((slide, i) => (
             <View
-              key={i}
+              key={slide.id}
               style={[
                 styles.dot,
                 i === currentIndex
-                  ? [styles.dotActive, { backgroundColor: BUTTON_COLORS[currentIndex][0] }]
+                  ? [styles.dotActive, { backgroundColor: currentSlide.accent }]
                   : styles.dotInactive,
               ]}
             />
           ))}
         </View>
 
-        <Pressable onPress={handleNext}>
+        {/* Action button */}
+        <Pressable onPress={handleNext} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
           <LinearGradient
-            colors={BUTTON_COLORS[currentIndex]}
+            colors={[currentSlide.accent, currentSlide.accent + 'cc']}
             style={styles.nextBtn}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}>
+            end={{ x: 1, y: 0 }}
+          >
             <Text style={styles.nextBtnText}>
               {currentIndex === slides.length - 1 ? 'Get Started' : 'Next'}
             </Text>
@@ -178,108 +191,116 @@ export default function OnboardingScreen() {
             />
           </LinearGradient>
         </Pressable>
+
+        <Text style={styles.privacyNote}>Your photos are processed securely & never saved</Text>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.light.charcoal },
-  skipButton: {
-    position: 'absolute',
-    right: Spacing.xl,
-    zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  skipText: { fontSize: FontSize.sm, color: '#fff', fontWeight: '600' },
-  slide: { flex: 1 },
-  logoArea: {
-    paddingTop: 56,
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.lg,
-    alignItems: 'center',
-  },
-  slogan: {
-    fontSize: FontSize.sm,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: Spacing.xs,
-    fontWeight: '600',
-  },
-  imageArea: {
+  container: {
     flex: 1,
-    marginHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-    overflow: 'hidden',
-    position: 'relative',
+    backgroundColor: theme.background,
+  },
+  slide: {
+    flex: 1,
   },
   bgImage: {
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
-    position: 'absolute',
   },
-  badgeContainer: {
-    position: 'absolute',
-    top: Spacing['2xl'],
-    left: 0,
-    right: 0,
+  slideContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
+  skipPill: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  skipText: {
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
+  },
+  centerArea: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   glassBadge: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  innerBadge: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  textArea: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
   slideTitle: {
-    position: 'absolute',
-    bottom: 72,
-    left: Spacing.xl,
-    right: Spacing.xl,
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: '800',
     color: '#fff',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    letterSpacing: -0.5,
+  },
+  slideHighlight: {
+    fontWeight: '800',
   },
   slideDescription: {
-    position: 'absolute',
-    bottom: 32,
-    left: Spacing.xl,
-    right: Spacing.xl,
     fontSize: FontSize.base,
-    color: 'rgba(255,255,255,0.95)',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  privacyNote: {
-    textAlign: 'center',
-    fontSize: FontSize.xs,
-    color: Colors.light.textSecondary,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 24,
   },
   bottomArea: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingHorizontal: Spacing.xl,
-    gap: Spacing.lg,
+    gap: Spacing.base,
+    backgroundColor: 'rgba(10,10,20,0.85)',
+    paddingTop: Spacing.base,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
   },
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
   },
-  dot: { height: 8, borderRadius: 4 },
-  dotActive: { width: 32 },
-  dotInactive: { width: 8, backgroundColor: '#d1d5db' },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    width: 28,
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
   nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -287,11 +308,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: BorderRadius.lg,
     gap: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
+    ...Shadows.md,
   },
-  nextBtnText: { fontSize: FontSize.md, fontWeight: '700', color: '#fff' },
+  nextBtnText: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  privacyNote: {
+    textAlign: 'center',
+    fontSize: FontSize.xs,
+    color: 'rgba(255,255,255,0.4)',
+  },
 });

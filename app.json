@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tryverse",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -14,7 +14,10 @@
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "TryVerse needs camera access to take selfies for virtual try-on",
-        "NSPhotoLibraryUsageDescription": "TryVerse needs photo library access to select photos for virtual try-on"
+        "NSPhotoLibraryUsageDescription": "TryVerse needs photo library access to select photos for virtual try-on",
+        "NSPhotoLibraryAddUsageDescription": "TryVerse needs permission to save generated images and videos to your gallery",
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["fetch"]
       }
     },
     "android": {
@@ -54,7 +57,24 @@
           "resizeMode": "contain",
           "backgroundColor": "#1a1a2e"
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#c9a96e"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "TryVerse needs access to save generated images and videos to your gallery.",
+          "savePhotosPermission": "TryVerse needs permission to save images and videos.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      "expo-background-fetch",
+      "expo-av"
     ],
     "experiments": {
       "typedRoutes": true,

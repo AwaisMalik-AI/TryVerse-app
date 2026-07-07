@@ -6,7 +6,7 @@ import { File, Paths } from 'expo-file-system';
 import type { DownloadOptions } from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius } from '@/constants/theme';
+import { theme, Gradients, Spacing, FontSize, BorderRadius } from '@/constants/theme';
 import { API_URL, getToken } from '@/lib/api';
 
 interface ImageResultProps {
@@ -28,39 +28,35 @@ function extractStyleScore(text: string): { score: number | null; cleanText: str
 }
 
 function getScoreTheme(score: number) {
-  if (score >= 8) return { label: 'Excellent Match', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', gradient: ['#16a34a', '#22c55e'] as [string, string] };
-  if (score >= 6) return { label: 'Good Match', color: '#c9a96e', bg: '#faf6ef', border: '#e8c98a', gradient: ['#c9a96e', '#e8c98a'] as [string, string] };
-  if (score >= 4) return { label: 'Fair Match', color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', gradient: ['#ea580c', '#f97316'] as [string, string] };
-  return { label: 'Poor Match', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', gradient: ['#dc2626', '#ef4444'] as [string, string] };
+  if (score >= 8) return { label: 'Excellent Match', color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)', gradient: ['#16a34a', '#22c55e'] as [string, string] };
+  if (score >= 6) return { label: 'Good Match', color: '#c9a96e', bg: 'rgba(201,169,110,0.1)', border: 'rgba(201,169,110,0.3)', gradient: ['#c9a96e', '#e8c98a'] as [string, string] };
+  if (score >= 4) return { label: 'Fair Match', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', gradient: ['#ea580c', '#f97316'] as [string, string] };
+  return { label: 'Poor Match', color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', gradient: ['#dc2626', '#ef4444'] as [string, string] };
 }
 
 function StyleScoreCard({ score }: { score: number }) {
-  const theme = getScoreTheme(score);
+  const t = getScoreTheme(score);
   const fullStars = Math.floor(score / 2);
   const halfStar = (score % 2) >= 1;
   const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
 
   return (
-    <View style={[scoreStyles.container, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-      <LinearGradient
-        colors={theme.gradient}
-        style={scoreStyles.scoreBox}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}>
+    <View style={[scoreStyles.container, { backgroundColor: t.bg, borderColor: t.border }]}>
+      <LinearGradient colors={t.gradient} style={scoreStyles.scoreBox} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         <Text style={scoreStyles.scoreNumber}>{score}</Text>
         <Text style={scoreStyles.scoreDenom}>/10</Text>
       </LinearGradient>
       <View style={scoreStyles.info}>
         <View style={scoreStyles.starsRow}>
           {Array.from({ length: fullStars }, (_, i) => (
-            <Ionicons key={`f${i}`} name="star" size={16} color={theme.color} />
+            <Ionicons key={`f${i}`} name="star" size={16} color={t.color} />
           ))}
-          {halfStar && <Ionicons name="star-half" size={16} color={theme.color} />}
+          {halfStar && <Ionicons name="star-half" size={16} color={t.color} />}
           {Array.from({ length: emptyStars }, (_, i) => (
-            <Ionicons key={`e${i}`} name="star-outline" size={16} color="#d1d5db" />
+            <Ionicons key={`e${i}`} name="star-outline" size={16} color={theme.textMuted} />
           ))}
         </View>
-        <Text style={[scoreStyles.label, { color: theme.color }]}>{theme.label}</Text>
+        <Text style={[scoreStyles.label, { color: t.color }]}>{t.label}</Text>
         <Text style={scoreStyles.desc}>How well this product suits you</Text>
       </View>
     </View>
@@ -73,11 +69,7 @@ function RichFeedbackText({ text }: { text: string }) {
     <Text style={styles.feedbackText}>
       {parts.map((part, i) => {
         if (part.startsWith('**') && part.endsWith('**')) {
-          return (
-            <Text key={i} style={styles.feedbackBold}>
-              {part.slice(2, -2)}
-            </Text>
-          );
+          return <Text key={i} style={styles.feedbackBold}>{part.slice(2, -2)}</Text>;
         }
         return <Text key={i}>{part}</Text>;
       })}
@@ -127,9 +119,7 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
       }
     };
     loadImage();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [imageUrl, retryKey]);
 
   const saveToGallery = async () => {
@@ -140,7 +130,6 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
         return;
       }
       setSaving(true);
-
       let saveUri = localUri;
       if (!saveUri) {
         const filename = `tryverse_${Date.now()}.jpg`;
@@ -153,12 +142,10 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
         const file = await File.downloadFileAsync(imageUrl, destination, downloadOpts);
         saveUri = file.uri;
       }
-
       await MediaLibrary.saveToLibraryAsync(saveUri);
       setSaved(true);
       Alert.alert('Saved!', 'Image has been saved to your gallery.');
-    } catch (error) {
-      if (__DEV__) console.log('[SAVE] Error saving to gallery:', error);
+    } catch {
       Alert.alert('Error', 'Could not save the image. Please try again.');
     } finally {
       setSaving(false);
@@ -170,7 +157,7 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
         <View style={styles.badge}>
-          <Ionicons name="checkmark-circle" size={16} color={Colors.light.success} />
+          <Ionicons name="checkmark-circle" size={16} color={theme.success} />
           <Text style={styles.badgeText}>Generated</Text>
         </View>
       </View>
@@ -178,31 +165,23 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
       <Pressable onPress={() => localUri && setFullscreen(true)} style={styles.imageWrapper}>
         {loadingImage ? (
           <View style={[styles.image, styles.imageLoading]}>
-            <ActivityIndicator size="large" color={Colors.light.gold} />
+            <ActivityIndicator size="large" color={theme.gold} />
             <Text style={styles.loadingText}>Loading image...</Text>
           </View>
         ) : loadError ? (
           <View style={[styles.image, styles.imageLoading]}>
-            <Ionicons name="image-outline" size={48} color={Colors.light.textMuted} />
+            <Ionicons name="image-outline" size={48} color={theme.textMuted} />
             <Text style={styles.loadingText}>Could not load image</Text>
             <Pressable
-              onPress={() => {
-                setLoadError(false);
-                setLocalUri(null);
-                setRetryKey((k) => k + 1);
-              }}
-              style={styles.retryButton}>
+              onPress={() => { setLoadError(false); setLocalUri(null); setRetryKey((k) => k + 1); }}
+              style={styles.retryButton}
+            >
               <Text style={styles.retryText}>Retry</Text>
             </Pressable>
           </View>
         ) : localUri ? (
           <>
-            <ExpoImage
-              source={{ uri: localUri }}
-              style={styles.image}
-              contentFit="contain"
-              transition={300}
-            />
+            <ExpoImage source={{ uri: localUri }} style={styles.image} contentFit="contain" transition={300} />
             <View style={styles.zoomHint}>
               <Ionicons name="expand-outline" size={16} color="#fff" />
               <Text style={styles.zoomHintText}>Tap to zoom</Text>
@@ -221,12 +200,9 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
               minimumZoomScale={1}
               bouncesZoom
               showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}>
-              <ExpoImage
-                source={{ uri: localUri }}
-                style={{ width, height: screenHeight }}
-                contentFit="contain"
-              />
+              showsVerticalScrollIndicator={false}
+            >
+              <ExpoImage source={{ uri: localUri }} style={{ width, height: screenHeight }} contentFit="contain" />
             </ScrollView>
             <Pressable onPress={() => setFullscreen(false)} style={styles.fullscreenClose}>
               <Ionicons name="close" size={28} color="#fff" />
@@ -236,16 +212,17 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
       )}
 
       <View style={styles.actions}>
-        <Pressable onPress={saveToGallery} disabled={saving} style={styles.saveButton}>
+        <Pressable onPress={saveToGallery} disabled={saving} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
           <LinearGradient
-            colors={saved ? [Colors.light.success, '#16a34a'] : ['#c9a96e', '#e8c98a']}
+            colors={saved ? [theme.success, '#16a34a'] : Gradients.gold as unknown as [string, string]}
             style={styles.saveGradient}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}>
+            end={{ x: 1, y: 0 }}
+          >
             <Ionicons
               name={saved ? 'checkmark-circle' : 'download-outline'}
               size={20}
-              color={saved ? '#fff' : '#1a1a2e'}
+              color={saved ? '#fff' : theme.textInverse}
             />
             <Text style={[styles.saveText, saved && { color: '#fff' }]}>
               {saving ? 'Saving...' : saved ? 'Saved to Gallery' : 'Save to Gallery'}
@@ -258,20 +235,16 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
         <View style={styles.feedbackSection}>
           <View style={styles.feedbackHeader}>
             <View style={styles.feedbackIconBg}>
-              <Ionicons name="chatbubble-ellipses-outline" size={16} color={Colors.light.gold} />
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color={theme.gold} />
             </View>
             <Text style={styles.feedbackTitle}>AI Styling Feedback</Text>
           </View>
-          {parsedFeedback.score !== null && (
-            <StyleScoreCard score={parsedFeedback.score} />
-          )}
+          {parsedFeedback.score !== null && <StyleScoreCard score={parsedFeedback.score} />}
           <RichFeedbackText text={parsedFeedback.cleanText} />
         </View>
       )}
 
-      <Text style={styles.hint}>
-        Download your image before leaving — it won't be stored on our servers
-      </Text>
+      <Text style={styles.hint}>Download your image before leaving — it won't be stored on our servers</Text>
     </View>
   );
 }
@@ -284,29 +257,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  title: { fontSize: FontSize.md, fontWeight: '700', color: Colors.light.charcoal, flex: 1, marginRight: Spacing.sm },
+  title: { fontSize: FontSize.md, fontWeight: '700', color: theme.text, flex: 1, marginRight: Spacing.sm },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.light.success + '15',
+    backgroundColor: theme.successMuted,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
     borderRadius: BorderRadius.full,
   },
-  badgeText: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.light.success },
+  badgeText: { fontSize: FontSize.xs, fontWeight: '600', color: theme.success },
   imageWrapper: {
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: Colors.light.borderLight,
+    borderColor: theme.border,
   },
   image: {
     width: '100%',
     aspectRatio: 1,
     maxHeight: 500,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: theme.surface,
   },
   imageLoading: {
     justifyContent: 'center',
@@ -315,28 +288,28 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: FontSize.sm,
-    color: Colors.light.textMuted,
+    color: theme.textMuted,
     marginTop: Spacing.sm,
   },
   retryButton: {
     marginTop: Spacing.md,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.light.gold + '20',
+    backgroundColor: theme.goldMuted,
     borderRadius: BorderRadius.md,
   },
   retryText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.light.gold,
+    color: theme.gold,
   },
   feedbackSection: {
     marginTop: Spacing.lg,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: theme.surface,
     borderRadius: BorderRadius.lg,
     padding: Spacing.base,
     borderWidth: 1,
-    borderColor: Colors.light.borderLight,
+    borderColor: theme.border,
   },
   feedbackHeader: {
     flexDirection: 'row',
@@ -348,42 +321,35 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: Colors.light.gold + '15',
+    backgroundColor: theme.goldMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   feedbackTitle: {
     fontSize: FontSize.sm,
     fontWeight: '700',
-    color: Colors.light.charcoal,
+    color: theme.text,
   },
   feedbackText: {
     fontSize: FontSize.sm,
-    color: Colors.light.textSecondary,
+    color: theme.textSecondary,
     lineHeight: 22,
   },
   feedbackBold: {
     fontWeight: '700',
-    color: Colors.light.charcoal,
+    color: theme.text,
   },
   actions: { marginTop: Spacing.md },
-  saveButton: {
-    borderRadius: BorderRadius.md,
-    overflow: 'hidden',
-    shadowColor: '#c9a96e',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-  },
   saveGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
   },
-  saveText: { fontSize: FontSize.base, fontWeight: '700', color: '#1a1a2e' },
+  saveText: { fontSize: FontSize.base, fontWeight: '700', color: theme.textInverse },
   zoomHint: {
     position: 'absolute',
     bottom: Spacing.sm,
@@ -396,20 +362,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: BorderRadius.sm,
   },
-  zoomHintText: {
-    fontSize: FontSize.xs,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  fullscreenContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  fullscreenScrollContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  zoomHintText: { fontSize: FontSize.xs, color: '#fff', fontWeight: '600' },
+  fullscreenContainer: { flex: 1, backgroundColor: '#000' },
+  fullscreenScrollContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   fullscreenClose: {
     position: 'absolute',
     top: 50,
@@ -424,7 +379,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: FontSize.xs,
-    color: Colors.light.textMuted,
+    color: theme.textMuted,
     textAlign: 'center',
     marginTop: Spacing.sm,
     fontStyle: 'italic',
@@ -448,32 +403,10 @@ const scoreStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scoreNumber: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#fff',
-  },
-  scoreDenom: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: -2,
-  },
-  info: {
-    flex: 1,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    gap: 2,
-    marginBottom: 4,
-  },
-  label: {
-    fontSize: FontSize.sm,
-    fontWeight: '700',
-  },
-  desc: {
-    fontSize: FontSize.xs,
-    color: Colors.light.textMuted,
-    marginTop: 2,
-  },
+  scoreNumber: { fontSize: 22, fontWeight: '800', color: '#fff' },
+  scoreDenom: { fontSize: 9, fontWeight: '600', color: 'rgba(255,255,255,0.8)', marginTop: -2 },
+  info: { flex: 1 },
+  starsRow: { flexDirection: 'row', gap: 2, marginBottom: 4 },
+  label: { fontSize: FontSize.sm, fontWeight: '700' },
+  desc: { fontSize: FontSize.xs, color: theme.textMuted, marginTop: 2 },
 });

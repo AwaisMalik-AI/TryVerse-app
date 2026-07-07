@@ -1,34 +1,39 @@
+import { useState } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
 import { HapticTab } from '@/components/haptic-tab';
-import { Colors } from '@/constants/theme';
+import { theme, TAB_BAR_HEIGHT } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
+import { StyloChat, StyloFAB } from '@/components/StyloChat';
 
 export default function TabLayout() {
+  const [styloOpen, setStyloOpen] = useState(false);
+
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarActiveTintColor: '#c9a96e',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: theme.gold,
+        tabBarInactiveTintColor: theme.tabIconDefault,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarBackground: () => (
+        tabBarBackground: () =>
           Platform.OS === 'ios' ? (
-            <BlurView intensity={90} tint="light" style={StyleSheet.absoluteFill} />
+            <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
           ) : (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#fff' }]} />
-          )
-        ),
-      }}>
+            <View style={[StyleSheet.absoluteFill, styles.androidTabBg]} />
+          ),
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={26} color={color} />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -37,7 +42,7 @@ export default function TabLayout() {
         options={{
           title: 'Shop',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'bag' : 'bag-outline'} size={26} color={color} />
+            <Ionicons name={focused ? 'bag' : 'bag-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -47,7 +52,7 @@ export default function TabLayout() {
           title: 'Try On',
           tabBarIcon: ({ color, focused }) => (
             <View style={[styles.centerTab, focused && styles.centerTabActive]}>
-              <Ionicons name={focused ? 'shirt' : 'shirt-outline'} size={26} color={focused ? '#fff' : color} />
+              <Ionicons name={focused ? 'shirt' : 'shirt-outline'} size={24} color={focused ? theme.textInverse : color} />
             </View>
           ),
           tabBarLabel: () => null,
@@ -58,7 +63,7 @@ export default function TabLayout() {
         options={{
           title: 'Style',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'sparkles' : 'sparkles-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'sparkles' : 'sparkles-outline'} size={22} color={color} />
           ),
         }}
       />
@@ -67,26 +72,31 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} />
           ),
         }}
       />
     </Tabs>
+    <StyloFAB onPress={() => setStyloOpen(true)} />
+    <StyloChat visible={styloOpen} onClose={() => setStyloOpen(false)} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
-    borderTopWidth: 0,
+    borderTopWidth: 1,
+    borderTopColor: theme.tabBarBorder,
     elevation: 0,
-    height: Platform.OS === 'ios' ? 88 : 65,
+    height: Platform.OS === 'ios' ? TAB_BAR_HEIGHT : 68,
     paddingTop: 8,
-    backgroundColor: Platform.OS === 'ios' ? 'transparent' : '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
+    backgroundColor: Platform.OS === 'ios' ? 'transparent' : theme.tabBar,
+  },
+  androidTabBg: {
+    backgroundColor: theme.tabBar,
+    borderTopWidth: 1,
+    borderTopColor: theme.tabBarBorder,
   },
   tabLabel: {
     fontSize: 11,
@@ -97,13 +107,16 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: Colors.light.surfaceSecondary,
+    backgroundColor: theme.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
+    borderWidth: 1,
+    borderColor: theme.border,
   },
   centerTabActive: {
-    backgroundColor: Colors.light.gold,
+    backgroundColor: theme.gold,
+    borderColor: theme.goldDark,
     shadowColor: '#c9a96e',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
