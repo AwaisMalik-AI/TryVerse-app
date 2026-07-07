@@ -107,6 +107,59 @@ export async function scheduleReEngagementNotification() {
   });
 }
 
+export async function scheduleCreditResetNotification() {
+  if (Platform.OS === 'web') return;
+  const existing = await Notifications.getAllScheduledNotificationsAsync();
+  if (existing.some((n) => n.content.data?.type === 'credit_reset')) return;
+
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const secondsUntilMidnight = Math.max(Math.floor((midnight.getTime() - now.getTime()) / 1000), 60);
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Daily Credits Refreshed!',
+      body: 'Your free daily credits have been reset. Try on new outfits today!',
+      sound: 'default',
+      data: { type: 'credit_reset' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: secondsUntilMidnight,
+    },
+  });
+}
+
+export async function sendGenerationCompleteNotification(feature: string, count: number = 1) {
+  if (Platform.OS === 'web') return;
+
+  const titles: Record<string, string> = {
+    tryon: 'Try-On Ready!',
+    pose: 'Pose Ready!',
+    video: 'Video Ready!',
+    stylist: 'Style Analysis Ready!',
+  };
+
+  const bodies: Record<string, string> = {
+    tryon: count > 1 ? `Your ${count} try-on results are ready to view.` : 'Your try-on result is ready. Open the app to view and save it.',
+    pose: count > 1 ? `Your ${count} pose results are ready.` : 'Your pose result is ready to view.',
+    video: 'Your showcase video has been generated. Open the app to watch it.',
+    stylist: 'Your style analysis is complete. Check out your personalized recommendations.',
+  };
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: titles[feature] || 'Generation Complete!',
+      body: bodies[feature] || 'Your AI generation is ready to view.',
+      sound: 'default',
+      data: { type: 'generation_complete', feature },
+      ...(Platform.OS === 'android' ? { channelId: 'generation' } : {}),
+    },
+    trigger: null,
+  });
+}
+
 export async function registerBackgroundTask() {
   if (Platform.OS === 'web') return;
   try {

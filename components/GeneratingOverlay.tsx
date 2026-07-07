@@ -25,9 +25,10 @@ interface GeneratingOverlayProps {
   visible: boolean;
   message?: string;
   onComplete?: () => void;
+  durationMs?: number;
 }
 
-export function GeneratingOverlay({ visible, message, onComplete }: GeneratingOverlayProps) {
+export function GeneratingOverlay({ visible, message, onComplete, durationMs = 30000 }: GeneratingOverlayProps) {
   const { width } = useWindowDimensions();
   const PROGRESS_BAR_WIDTH = width * 0.75;
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -37,7 +38,7 @@ export function GeneratingOverlay({ visible, message, onComplete }: GeneratingOv
   const [stageIndex, setStageIndex] = useState(0);
 
   useEffect(() => {
-    if (!visible || message) return;
+    if (!visible) return;
     const interval = setInterval(() => {
       Animated.sequence([
         Animated.timing(fadeValue, { toValue: 0, duration: 200, useNativeDriver: true }),
@@ -46,7 +47,7 @@ export function GeneratingOverlay({ visible, message, onComplete }: GeneratingOv
       setStageIndex((i) => (i + 1) % STAGES.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, [visible, message]);
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) {
@@ -57,7 +58,7 @@ export function GeneratingOverlay({ visible, message, onComplete }: GeneratingOv
     progressValue.setValue(0);
     const anim = Animated.timing(progressValue, {
       toValue: 1,
-      duration: 30000,
+      duration: durationMs,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
       useNativeDriver: false,
     });
@@ -85,7 +86,7 @@ export function GeneratingOverlay({ visible, message, onComplete }: GeneratingOv
 
   const spin = spinValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const stage = STAGES[stageIndex];
-  const displayMessage = message ?? stage.text;
+  const displayMessage = message || stage.text;
 
   if (!visible) return null;
 
@@ -120,7 +121,7 @@ export function GeneratingOverlay({ visible, message, onComplete }: GeneratingOv
                 <LinearGradient colors={Gradients.gold} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
               </Animated.View>
             </View>
-            <Text style={styles.subtitle}>This usually takes 15-30 seconds</Text>
+            <Text style={styles.subtitle}>{durationMs > 60000 ? 'This may take 1-3 minutes' : 'This usually takes 15-30 seconds'}</Text>
           </View>
 
           <View style={styles.stepsRow}>

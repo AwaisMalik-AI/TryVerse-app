@@ -70,13 +70,17 @@ export default function ProfileScreen() {
       promo: key === 'promo' ? value : promoNotifications,
       results: key === 'results' ? value : resultNotifications,
     };
-    if (key === 'enabled') setNotificationsEnabled(value);
-    if (key === 'promo') setPromoNotifications(value);
-    if (key === 'results') setResultNotifications(value);
-    if (Platform.OS === 'web') {
-      if (typeof localStorage !== 'undefined') localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(prefs));
-    } else {
-      await SecureStore.setItemAsync(NOTIF_PREFS_KEY, JSON.stringify(prefs));
+    try {
+      if (Platform.OS === 'web') {
+        if (typeof localStorage !== 'undefined') localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(prefs));
+      } else {
+        await SecureStore.setItemAsync(NOTIF_PREFS_KEY, JSON.stringify(prefs));
+      }
+      if (key === 'enabled') setNotificationsEnabled(value);
+      if (key === 'promo') setPromoNotifications(value);
+      if (key === 'results') setResultNotifications(value);
+    } catch {
+      Alert.alert('Error', 'Could not save notification preferences. Please try again.');
     }
   };
 

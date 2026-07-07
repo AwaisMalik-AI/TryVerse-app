@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert, useWindowDimensions, ActivityIndicator, Modal, ScrollView, StatusBar } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { theme, Gradients, Spacing, FontSize, BorderRadius } from '@/constants/theme';

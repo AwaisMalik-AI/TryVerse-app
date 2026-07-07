@@ -6,6 +6,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
   registerForPushNotifications,
   scheduleReEngagementNotification,
+  scheduleCreditResetNotification,
   registerBackgroundTask,
 } from '@/lib/notifications';
 import { apiFetch } from '@/lib/api';
@@ -20,7 +21,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
     const inAuthGroup = segments[0] === '(auth)';
-    const isRoot = segments.length === 0 || segments[0] === undefined || segments[0] === 'index';
+    const isRoot = (segments.length as number) === 0 || segments[0] === undefined;
     if (!isAuthenticated && !inAuthGroup && !isRoot) {
       router.replace('/(auth)/login');
     }
@@ -49,6 +50,7 @@ function InitEffects() {
     }).catch(() => {});
     registerBackgroundTask().catch(() => {});
     scheduleReEngagementNotification().catch(() => {});
+    scheduleCreditResetNotification().catch(() => {});
   }, []);
   return null;
 }

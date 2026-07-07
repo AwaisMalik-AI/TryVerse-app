@@ -155,8 +155,8 @@ export const Shadows = {
   },
 };
 
-export const TAB_BAR_HEIGHT = 85;
-export const TAB_BAR_SPACER = TAB_BAR_HEIGHT + 10;
+export const TAB_BAR_HEIGHT = 65;
+export const TAB_BAR_SPACER = TAB_BAR_HEIGHT + 40;
 export const HEADER_HEIGHT = 56;
 
 // Shorthand for the active theme (dark only)

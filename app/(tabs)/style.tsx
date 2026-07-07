@@ -41,6 +41,7 @@ interface PosePreset {
 }
 
 const PRESET_THUMBNAIL_MAP: Record<string, ReturnType<typeof require>> = {
+  // Direct matches (20 local images)
   'confident-standing': require('@/assets/images/poses/confident-standing.jpg'),
   'confident_standing': require('@/assets/images/poses/confident-standing.jpg'),
   'executive-walk': require('@/assets/images/poses/executive-walk.jpg'),
@@ -81,6 +82,47 @@ const PRESET_THUMBNAIL_MAP: Record<string, ReturnType<typeof require>> = {
   'jump_shot': require('@/assets/images/poses/jump-shot.jpg'),
   'dance-move': require('@/assets/images/poses/dance-move.jpg'),
   'dance_move': require('@/assets/images/poses/dance-move.jpg'),
+  // Studio backgrounds — use closest reference
+  'white_studio_pose': require('@/assets/images/poses/confident-standing.jpg'),
+  'white-studio-pose': require('@/assets/images/poses/confident-standing.jpg'),
+  'warm_beige_studio': require('@/assets/images/poses/business-portrait.jpg'),
+  'warm-beige-studio': require('@/assets/images/poses/business-portrait.jpg'),
+  'grey_backdrop_pose': require('@/assets/images/poses/dramatic-profile.jpg'),
+  'grey-backdrop-pose': require('@/assets/images/poses/dramatic-profile.jpg'),
+  'pastel_studio_pose': require('@/assets/images/poses/model-turn.jpg'),
+  'pastel-studio-pose': require('@/assets/images/poses/model-turn.jpg'),
+  'modern_office': require('@/assets/images/poses/executive-walk.jpg'),
+  'modern-office': require('@/assets/images/poses/executive-walk.jpg'),
+  // Outdoor / Lifestyle
+  'garden_portrait': require('@/assets/images/poses/sunlight-portrait.jpg'),
+  'garden-portrait': require('@/assets/images/poses/sunlight-portrait.jpg'),
+  // Special occasion
+  'garden_wedding': require('@/assets/images/poses/staircase-pose.jpg'),
+  'garden-wedding': require('@/assets/images/poses/staircase-pose.jpg'),
+  'evening_gala': require('@/assets/images/poses/dramatic-profile.jpg'),
+  'evening-gala': require('@/assets/images/poses/dramatic-profile.jpg'),
+  'birthday_party': require('@/assets/images/poses/dance-move.jpg'),
+  'birthday-party': require('@/assets/images/poses/dance-move.jpg'),
+  'outdoor_reception': require('@/assets/images/poses/sunlight-portrait.jpg'),
+  'outdoor-reception': require('@/assets/images/poses/sunlight-portrait.jpg'),
+  // Vacation
+  'poolside_resort': require('@/assets/images/poses/casual-lean.jpg'),
+  'poolside-resort': require('@/assets/images/poses/casual-lean.jpg'),
+  'beach_sunset_pose': require('@/assets/images/poses/wind-blown.jpg'),
+  'beach-sunset-pose': require('@/assets/images/poses/wind-blown.jpg'),
+  'art_gallery_pose': require('@/assets/images/poses/over-the-shoulder.jpg'),
+  'art-gallery-pose': require('@/assets/images/poses/over-the-shoulder.jpg'),
+  'boutique_hotel_pose': require('@/assets/images/poses/window-gaze.jpg'),
+  'boutique-hotel-pose': require('@/assets/images/poses/window-gaze.jpg'),
+  // Sports
+  'gym_session_pose': require('@/assets/images/poses/action-stride.jpg'),
+  'gym-session-pose': require('@/assets/images/poses/action-stride.jpg'),
+  'morning_run_pose': require('@/assets/images/poses/street-stroll.jpg'),
+  'morning-run-pose': require('@/assets/images/poses/street-stroll.jpg'),
+  'yoga_studio_pose': require('@/assets/images/poses/floor-pose.jpg'),
+  'yoga-studio-pose': require('@/assets/images/poses/floor-pose.jpg'),
+  'tennis_court_pose': require('@/assets/images/poses/jump-shot.jpg'),
+  'tennis-court-pose': require('@/assets/images/poses/jump-shot.jpg'),
 };
 
 type StylistCategoryId = 'ai_stylist' | 'travel' | 'search';
