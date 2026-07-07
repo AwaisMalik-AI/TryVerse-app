@@ -100,7 +100,6 @@ export default function VideoStudioScreen() {
     const MAX_POLL_SECONDS = 300;
     pollRef.current = setInterval(async () => {
       elapsed += 5;
-      setProgress(Math.min(elapsed / 120 * 100, 95));
 
       if (elapsed >= MAX_POLL_SECONDS) {
         if (pollRef.current) clearInterval(pollRef.current);
@@ -114,9 +113,12 @@ export default function VideoStudioScreen() {
         const res = await apiFetch(`/api/video/status/${id}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.status === 'completed' && data.video_url) {
+          if (data.progress != null) setProgress(Math.min(data.progress, 95));
+          else setProgress(Math.min(elapsed / 120 * 100, 95));
+          const videoPath = data.download_url || data.video_url;
+          if (data.status === 'completed' && videoPath) {
             if (pollRef.current) clearInterval(pollRef.current);
-            const url = data.video_url.startsWith('http') ? data.video_url : `${API_URL}${data.video_url}`;
+            const url = videoPath.startsWith('http') ? videoPath : `${API_URL}${videoPath}`;
             setVideoUrl(url);
             setIsGenerating(false);
             setProgress(100);

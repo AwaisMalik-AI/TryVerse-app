@@ -1,26 +1,25 @@
-import { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Alert,
-  Switch,
-  TextInput,
-  ActivityIndicator,
-  Linking,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
-import { theme, Gradients, Spacing, FontSize, BorderRadius, TAB_BAR_SPACER, Shadows } from '@/constants/theme';
-import * as SecureStore from 'expo-secure-store';
-import { useAuth } from '@/lib/auth';
-import { apiGet, apiFetch } from '@/lib/api';
 import { GoldButton } from '@/components/ui/GoldButton';
-import { Input } from '@/components/ui/Input';
+import { BorderRadius, FontSize, Gradients, Shadows, Spacing, TAB_BAR_SPACER, theme } from '@/constants/theme';
+import { apiFetch, apiGet } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import { useEffect, useState } from 'react';
+import {
+    Alert,
+    Linking,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    View
+} from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const NOTIF_PREFS_KEY = 'notification_preferences';
@@ -53,7 +52,9 @@ export default function ProfileScreen() {
 
   const loadNotificationPrefs = async () => {
     try {
-      const data = await SecureStore.getItemAsync(NOTIF_PREFS_KEY);
+      const data = Platform.OS === 'web'
+        ? (typeof localStorage !== 'undefined' ? localStorage.getItem(NOTIF_PREFS_KEY) : null)
+        : await SecureStore.getItemAsync(NOTIF_PREFS_KEY);
       if (data) {
         const prefs = JSON.parse(data);
         setNotificationsEnabled(prefs.enabled ?? false);
@@ -72,7 +73,11 @@ export default function ProfileScreen() {
     if (key === 'enabled') setNotificationsEnabled(value);
     if (key === 'promo') setPromoNotifications(value);
     if (key === 'results') setResultNotifications(value);
-    await SecureStore.setItemAsync(NOTIF_PREFS_KEY, JSON.stringify(prefs));
+    if (Platform.OS === 'web') {
+      if (typeof localStorage !== 'undefined') localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(prefs));
+    } else {
+      await SecureStore.setItemAsync(NOTIF_PREFS_KEY, JSON.stringify(prefs));
+    }
   };
 
   const loadMeasurements = async () => {

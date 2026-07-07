@@ -6,10 +6,12 @@ import { Platform } from 'react-native';
 
 const BACKGROUND_TASK = 'TRYVERSE_BACKGROUND_CHECK';
 
-TaskManager.defineTask(BACKGROUND_TASK, async () => {
-  if (__DEV__) console.log('[BG] Background fetch running');
-  return BackgroundFetch.BackgroundFetchResult.NewData;
-});
+if (Platform.OS !== 'web') {
+  TaskManager.defineTask(BACKGROUND_TASK, async () => {
+    if (__DEV__) console.log('[BG] Background fetch running');
+    return BackgroundFetch.BackgroundFetchResult.NewData;
+  });
+}
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -22,6 +24,7 @@ Notifications.setNotificationHandler({
 });
 
 export async function registerForPushNotifications(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
   if (!Device.isDevice) {
     if (__DEV__) console.log('[NOTIF] Must use physical device for push notifications');
     return null;
@@ -69,6 +72,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
 }
 
 export async function sendLocalNotification(title: string, body: string, data?: Record<string, unknown>) {
+  if (Platform.OS === 'web') return;
   await Notifications.scheduleNotificationAsync({
     content: {
       title,
@@ -82,6 +86,7 @@ export async function sendLocalNotification(title: string, body: string, data?: 
 }
 
 export async function scheduleReEngagementNotification() {
+  if (Platform.OS === 'web') return;
   const existing = await Notifications.getAllScheduledNotificationsAsync();
   const hasReEngagement = existing.some(
     (n) => n.content.data?.type === 're_engagement'
@@ -103,6 +108,7 @@ export async function scheduleReEngagementNotification() {
 }
 
 export async function registerBackgroundTask() {
+  if (Platform.OS === 'web') return;
   try {
     const status = await BackgroundFetch.getStatusAsync();
     if (status === BackgroundFetch.BackgroundFetchStatus.Available) {

@@ -1,9 +1,33 @@
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
 const TOKEN_KEY = 'access_token';
 const USER_KEY = 'user_data';
+
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    if (Platform.OS === 'web') {
+      return typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+    }
+    return SecureStore.getItemAsync(key);
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
+      return;
+    }
+    await SecureStore.setItemAsync(key, value);
+  },
+  async removeItem(key: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      if (typeof localStorage !== 'undefined') localStorage.removeItem(key);
+      return;
+    }
+    await SecureStore.deleteItemAsync(key);
+  },
+};
 
 let _onSessionExpired: (() => void) | null = null;
 
@@ -12,34 +36,34 @@ export function setOnSessionExpired(cb: (() => void) | null): void {
 }
 
 export async function getToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return storage.getItem(TOKEN_KEY);
 }
 
 export async function setToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await storage.setItem(TOKEN_KEY, token);
 }
 
 export async function removeToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await storage.removeItem(TOKEN_KEY);
 }
 
 export async function getUser(): Promise<Record<string, unknown> | null> {
-  const data = await SecureStore.getItemAsync(USER_KEY);
+  const data = await storage.getItem(USER_KEY);
   if (!data) return null;
   try {
     return JSON.parse(data);
   } catch {
-    await SecureStore.deleteItemAsync(USER_KEY);
+    await storage.removeItem(USER_KEY);
     return null;
   }
 }
 
 export async function setUser(user: Record<string, unknown>): Promise<void> {
-  await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+  await storage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 export async function removeUser(): Promise<void> {
-  await SecureStore.deleteItemAsync(USER_KEY);
+  await storage.removeItem(USER_KEY);
 }
 
 export async function clearSession(): Promise<void> {

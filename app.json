@@ -17,7 +17,9 @@
         "NSPhotoLibraryUsageDescription": "TryVerse needs photo library access to select photos for virtual try-on",
         "NSPhotoLibraryAddUsageDescription": "TryVerse needs permission to save generated images and videos to your gallery",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["fetch"]
+        "UIBackgroundModes": [
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -74,7 +76,9 @@
         }
       ],
       "expo-background-fetch",
-      "expo-av"
+      "expo-av",
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

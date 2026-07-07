@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { theme, Gradients, Spacing, FontSize, BorderRadius, Shadows } from '@/constants/theme';
+import { theme, Gradients, Spacing, FontSize, BorderRadius, Shadows, TAB_BAR_HEIGHT } from '@/constants/theme';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
 
   fabContainer: {
-    position: 'absolute', bottom: 100, right: 20,
+    position: 'absolute', bottom: TAB_BAR_HEIGHT + 20, right: 20,
     zIndex: 999,
   },
   fab: {

@@ -436,9 +436,17 @@ export default function StyleScreen() {
                     {imageSource ? (
                       <Image source={imageSource} style={styles.poseGridImage} />
                     ) : (
-                      <View style={[styles.poseGridImage, styles.poseGridPlaceholder]}>
-                        <Ionicons name="body" size={22} color={theme.textMuted} />
-                      </View>
+                      <LinearGradient
+                        colors={preset.is_premium
+                          ? ['rgba(201,169,110,0.15)', 'rgba(201,169,110,0.05)']
+                          : ['rgba(100,100,140,0.15)', 'rgba(60,60,80,0.08)']}
+                        style={[styles.poseGridImage, styles.poseGridPlaceholder]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                      >
+                        <View style={styles.placeholderIconBg}>
+                          <Ionicons name={preset.is_premium ? 'diamond-outline' : 'body-outline'} size={24} color={preset.is_premium ? theme.gold : theme.textMuted} />
+                        </View>
+                      </LinearGradient>
                     )}
                     <LinearGradient colors={['transparent', 'rgba(0,0,0,0.75)']} style={styles.poseGridOverlay}>
                       <Text style={styles.poseGridName} numberOfLines={1}>{preset.name}</Text>
@@ -574,7 +582,8 @@ const styles = StyleSheet.create({
   poseGridItem: { borderRadius: BorderRadius.md, overflow: 'hidden', position: 'relative', borderWidth: 2, borderColor: 'transparent' },
   poseGridItemSelected: { borderColor: theme.gold },
   poseGridImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  poseGridPlaceholder: { backgroundColor: theme.surface, justifyContent: 'center', alignItems: 'center' },
+  poseGridPlaceholder: { justifyContent: 'center', alignItems: 'center' },
+  placeholderIconBg: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.06)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   poseGridOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 6, paddingBottom: 6, paddingTop: 20 },
   poseGridName: { fontSize: 10, fontWeight: '600', color: '#fff' },
   poseCheck: { position: 'absolute', top: 4, right: 4 },

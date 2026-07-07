@@ -20,7 +20,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
     const inAuthGroup = segments[0] === '(auth)';
-    const isRoot = segments.length === 0 || segments[0] === undefined;
+    const isRoot = segments.length === 0 || segments[0] === undefined || segments[0] === 'index';
     if (!isAuthenticated && !inAuthGroup && !isRoot) {
       router.replace('/(auth)/login');
     }
