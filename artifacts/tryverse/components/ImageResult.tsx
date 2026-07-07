@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert, useWindowDimensions, ActivityIndicator, Modal, ScrollView, StatusBar } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library';
-import { File, Paths } from 'expo-file-system';
-import type { DownloadOptions } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { theme, Gradients, Spacing, FontSize, BorderRadius } from '@/constants/theme';
@@ -99,15 +98,15 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
         setLoadingImage(true);
         setLoadError(false);
         const filename = `tryverse_preview_${Date.now()}.jpg`;
-        const destination = new File(Paths.cache, filename);
-        const downloadOpts: DownloadOptions = {};
+        const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+        const headers: Record<string, string> = {};
         if (imageUrl.startsWith(API_URL)) {
           const token = await getToken();
-          if (token) downloadOpts.headers = { Authorization: `Bearer ${token}` };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
         }
-        const file = await File.downloadFileAsync(imageUrl, destination, downloadOpts);
+        const download = await FileSystem.downloadAsync(imageUrl, fileUri, { headers });
         if (!cancelled) {
-          setLocalUri(file.uri);
+          setLocalUri(download.uri);
           setLoadingImage(false);
         }
       } catch (error) {
@@ -133,14 +132,14 @@ export function ImageResult({ imageUrl, title = 'Your Result', aiFeedback }: Ima
       let saveUri = localUri;
       if (!saveUri) {
         const filename = `tryverse_${Date.now()}.jpg`;
-        const destination = new File(Paths.cache, filename);
-        const downloadOpts: DownloadOptions = {};
+        const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+        const headers: Record<string, string> = {};
         if (imageUrl.startsWith(API_URL)) {
           const token = await getToken();
-          if (token) downloadOpts.headers = { Authorization: `Bearer ${token}` };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
         }
-        const file = await File.downloadFileAsync(imageUrl, destination, downloadOpts);
-        saveUri = file.uri;
+        const download = await FileSystem.downloadAsync(imageUrl, fileUri, { headers });
+        saveUri = download.uri;
       }
       await MediaLibrary.saveToLibraryAsync(saveUri);
       setSaved(true);

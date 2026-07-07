@@ -10,54 +10,56 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { theme, Gradients, FontSize, Spacing, BorderRadius } from '@/constants/theme';
 
-const PROGRESS_MESSAGES = [
-  'Analyzing your photo...',
-  'Finding the perfect fit...',
-  'AI is working its magic...',
-  'Tip: You can try different poses for better results',
-  'Almost there...',
-  'Tip: Full body photos work best for try-ons',
-  'Finalizing your look...',
-  'Tip: Good lighting helps AI generate better results',
-  'Putting finishing touches...',
-  'Tip: Try products from different stores for variety',
-  'Just a few more seconds...',
-  'Tip: Save your favorites to gallery after generation',
+const STAGES = [
+  { icon: 'scan-outline' as const, text: 'Analyzing your photo...', tip: 'Our AI is studying your body proportions and pose' },
+  { icon: 'color-palette-outline' as const, text: 'Matching colors & textures...', tip: 'Ensuring fabric colors look natural with your skin tone' },
+  { icon: 'body-outline' as const, text: 'Fitting the garment...', tip: 'Adjusting the clothing to your body shape' },
+  { icon: 'sparkles-outline' as const, text: 'Adding finishing touches...', tip: 'Fine-tuning lighting, shadows, and wrinkles' },
+  { icon: 'checkmark-done-outline' as const, text: 'Almost there...', tip: 'Final quality check before your result' },
+  { icon: 'diamond-outline' as const, text: 'Polishing your look...', tip: 'Save your result to gallery once it appears' },
 ];
 
 interface GeneratingOverlayProps {
   visible: boolean;
   message?: string;
   onComplete?: () => void;
+  durationMs?: number;
 }
 
-export function GeneratingOverlay({ visible, message, onComplete }: GeneratingOverlayProps) {
+export function GeneratingOverlay({ visible, message, onComplete, durationMs = 30000 }: GeneratingOverlayProps) {
   const { width } = useWindowDimensions();
-  const PROGRESS_BAR_WIDTH = width * 0.7;
+  const PROGRESS_BAR_WIDTH = width * 0.75;
   const spinValue = useRef(new Animated.Value(0)).current;
   const pulseValue = useRef(new Animated.Value(1)).current;
   const progressValue = useRef(new Animated.Value(0)).current;
-  const [messageIndex, setMessageIndex] = useState(0);
+  const fadeValue = useRef(new Animated.Value(1)).current;
+  const [stageIndex, setStageIndex] = useState(0);
 
   useEffect(() => {
-    if (!visible || message) return;
+    if (!visible) return;
     const interval = setInterval(() => {
-      setMessageIndex((i) => (i + 1) % PROGRESS_MESSAGES.length);
-    }, 4000);
+      Animated.sequence([
+        Animated.timing(fadeValue, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.timing(fadeValue, { toValue: 1, duration: 200, useNativeDriver: true }),
+      ]).start();
+      setStageIndex((i) => (i + 1) % STAGES.length);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [visible, message]);
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) {
       progressValue.setValue(0);
+      setStageIndex(0);
       return;
     }
     progressValue.setValue(0);
     const anim = Animated.timing(progressValue, {
       toValue: 1,
-      duration: 25000,
-      easing: Easing.linear,
+      duration: durationMs,
+      easing: Easing.bezier(0.4, 0, 0.2, 1),
       useNativeDriver: false,
     });
     anim.start(({ finished }) => {
@@ -68,82 +70,78 @@ export function GeneratingOverlay({ visible, message, onComplete }: GeneratingOv
 
   useEffect(() => {
     if (!visible) return;
-
     const spinAnimation = Animated.loop(
-      Animated.timing(spinValue, {
-        toValue: 1,
-        duration: 2000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
+      Animated.timing(spinValue, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: true }),
     );
-
     const pulseAnimation = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseValue, {
-          toValue: 1.15,
-          duration: 800,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseValue, {
-          toValue: 0.9,
-          duration: 800,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
+        Animated.timing(pulseValue, { toValue: 1.1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulseValue, { toValue: 0.95, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ]),
     );
-
     spinAnimation.start();
     pulseAnimation.start();
-    return () => {
-      spinAnimation.stop();
-      pulseAnimation.stop();
-    };
+    return () => { spinAnimation.stop(); pulseAnimation.stop(); };
   }, [visible, spinValue, pulseValue]);
 
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const displayMessage = message ?? PROGRESS_MESSAGES[messageIndex];
+  const spin = spinValue.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const stage = STAGES[stageIndex];
+  const displayMessage = message || stage.text;
 
   if (!visible) return null;
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <LinearGradient
-        colors={['rgba(26, 26, 46, 0.95)', 'rgba(40, 35, 30, 0.95)']}
-        style={styles.overlay}>
+      <LinearGradient colors={['rgba(10, 10, 20, 0.97)', 'rgba(30, 25, 15, 0.97)']} style={styles.overlay}>
         <View style={styles.content}>
-          {/* Rotating ring */}
           <View style={styles.iconContainer}>
-            <Animated.View style={[styles.ring, { transform: [{ rotate: spin }] }]} />
+            <Animated.View style={[styles.outerRing, { transform: [{ rotate: spin }] }]}>
+              <LinearGradient colors={['#c9a96e', '#e8c98a', '#c9a96e']} style={styles.ringGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            </Animated.View>
+            <Animated.View style={[styles.innerRing, { transform: [{ rotate: spin }, { scaleX: -1 }] }]}>
+              <LinearGradient colors={['rgba(201,169,110,0.3)', 'transparent', 'rgba(201,169,110,0.3)']} style={styles.ringGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            </Animated.View>
             <Animated.View style={[styles.iconWrapper, { transform: [{ scale: pulseValue }] }]}>
-              <Ionicons name="diamond" size={48} color="#e8c98a" />
+              <LinearGradient colors={Gradients.gold} style={styles.iconBg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <Ionicons name={stage.icon} size={36} color="#fff" />
+              </LinearGradient>
             </Animated.View>
           </View>
 
-          <Text style={styles.title}>{displayMessage}</Text>
-          <Text style={styles.subtitle}>This usually takes 15-30 seconds</Text>
-          <Text style={styles.privacyNote}>
-            Your photos are processed securely and never saved
-          </Text>
+          <Animated.View style={{ opacity: fadeValue, alignItems: 'center' }}>
+            <Text style={styles.title}>{displayMessage}</Text>
+            <Text style={styles.tip}>{stage.tip}</Text>
+          </Animated.View>
 
-          <View style={[styles.progressTrack, { width: PROGRESS_BAR_WIDTH }]}>
-            <Animated.View
-              style={[
-                styles.progressFill,
-                {
-                  width: progressValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, PROGRESS_BAR_WIDTH],
-                  }),
-                },
-              ]}
-            />
+          <View style={[styles.progressContainer, { width: PROGRESS_BAR_WIDTH }]}>
+            <View style={styles.progressTrack}>
+              <Animated.View style={[styles.progressFill, {
+                width: progressValue.interpolate({ inputRange: [0, 1], outputRange: [0, PROGRESS_BAR_WIDTH] }),
+              }]}>
+                <LinearGradient colors={Gradients.gold} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+              </Animated.View>
+            </View>
+            <Text style={styles.subtitle}>{durationMs > 60000 ? 'This may take 1-3 minutes' : 'This usually takes 15-30 seconds'}</Text>
+          </View>
+
+          <View style={styles.stepsRow}>
+            {STAGES.slice(0, 4).map((s, i) => (
+              <View key={i} style={styles.step}>
+                <View style={[styles.stepDot, i <= stageIndex && styles.stepDotActive]}>
+                  {i < stageIndex ? (
+                    <Ionicons name="checkmark" size={10} color="#fff" />
+                  ) : (
+                    <View style={[styles.stepDotInner, i === stageIndex && styles.stepDotInnerActive]} />
+                  )}
+                </View>
+                {i < 3 && <View style={[styles.stepLine, i < stageIndex && styles.stepLineActive]} />}
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.privacyBadge}>
+            <Ionicons name="shield-checkmark" size={14} color={theme.gold} />
+            <Text style={styles.privacyText}>Your photos are processed securely and never stored</Text>
           </View>
         </View>
       </LinearGradient>
@@ -152,63 +150,28 @@ export function GeneratingOverlay({ visible, message, onComplete }: GeneratingOv
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    alignItems: 'center',
-    paddingHorizontal: '15%',
-  },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  ring: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: 'transparent',
-    borderTopColor: '#c9a96e',
-    borderRightColor: '#e8c98a',
-  },
-  iconWrapper: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    marginBottom: 16,
-  },
-  privacyNote: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
-  },
-  progressTrack: {
-    marginTop: 24,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#c9a96e',
-    borderRadius: 2,
-  },
+  overlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  content: { alignItems: 'center', paddingHorizontal: Spacing.xl, width: '100%' },
+  iconContainer: { width: 140, height: 140, justifyContent: 'center', alignItems: 'center', marginBottom: 32 },
+  outerRing: { position: 'absolute', width: 130, height: 130, borderRadius: 65, borderWidth: 2.5, borderColor: 'transparent', borderTopColor: '#c9a96e', borderRightColor: '#e8c98a' },
+  innerRing: { position: 'absolute', width: 115, height: 115, borderRadius: 57.5, borderWidth: 1.5, borderColor: 'transparent', borderTopColor: 'rgba(201,169,110,0.4)', borderLeftColor: 'rgba(232,201,138,0.3)' },
+  ringGradient: { flex: 1, borderRadius: 65 },
+  iconWrapper: { justifyContent: 'center', alignItems: 'center' },
+  iconBg: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: FontSize.lg, fontWeight: '700', color: '#fff', textAlign: 'center', marginBottom: 8, letterSpacing: -0.3 },
+  tip: { fontSize: FontSize.sm, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 20, paddingHorizontal: Spacing.xl },
+  progressContainer: { marginTop: 32, alignItems: 'center' },
+  progressTrack: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', width: '100%' },
+  progressFill: { height: '100%', borderRadius: 2 },
+  subtitle: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.45)', marginTop: 10 },
+  stepsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 28 },
+  step: { flexDirection: 'row', alignItems: 'center' },
+  stepDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)' },
+  stepDotActive: { backgroundColor: theme.gold, borderColor: theme.gold },
+  stepDotInner: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.2)' },
+  stepDotInnerActive: { backgroundColor: '#fff' },
+  stepLine: { width: 36, height: 2, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 2 },
+  stepLineActive: { backgroundColor: theme.gold },
+  privacyBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 32, backgroundColor: 'rgba(201,169,110,0.08)', paddingHorizontal: Spacing.base, paddingVertical: 8, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: 'rgba(201,169,110,0.15)' },
+  privacyText: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)', fontWeight: '500' },
 });

@@ -21,7 +21,7 @@ export default function IndexScreen() {
   return (
     <View style={styles.container}>
       <Image
-        source={require('@/assets/images/icon.png')}
+        source={require('@/assets/images/tryverse-logo.png')}
         style={styles.logo}
         resizeMode="contain"
       />

@@ -19,10 +19,21 @@ import { Logo } from '@/components/Logo';
 import { useAuth } from '@/lib/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const features = [
+const heroFeature = {
+  id: 'pose',
+  title: 'Pose Studio',
+  description: 'Transform your photos into professional fashion poses with AI',
+  icon: 'camera-outline' as const,
+  route: '/(tabs)/style?tab=poses' as const,
+  gradient: Gradients.poseCard,
+  bgImage: require('@/assets/images/poses/model-turn.jpg'),
+  tag: 'MOST POPULAR',
+};
+
+const aiFeatures = [
   {
     id: 'tryon',
-    title: 'Virtual\nTry-On',
+    title: 'Virtual Try-On',
     description: 'See any outfit on yourself',
     icon: 'shirt-outline' as const,
     route: '/(tabs)/tryon' as const,
@@ -30,35 +41,17 @@ const features = [
     bgImage: require('@/assets/images/poses/confident-standing.jpg'),
   },
   {
-    id: 'shop',
-    title: 'Fashion\nStore',
-    description: 'Browse & try curated items',
-    icon: 'storefront-outline' as const,
-    route: '/(tabs)/shop' as const,
-    gradient: Gradients.shopCard,
-    bgImage: require('@/assets/images/poses/coffee-shop.jpg'),
-  },
-  {
     id: 'stylist',
-    title: 'AI Fashion\nStylist',
-    description: 'Your personal style advisor',
+    title: 'AI Stylist',
+    description: 'Personal style advisor',
     icon: 'sparkles-outline' as const,
     route: '/(tabs)/style' as const,
     gradient: Gradients.stylistCard,
     bgImage: require('@/assets/images/poses/business-portrait.jpg'),
   },
   {
-    id: 'pose',
-    title: 'Pose\nStudio',
-    description: 'Professional fashion poses',
-    icon: 'camera-outline' as const,
-    route: '/(tabs)/style?tab=poses' as const,
-    gradient: Gradients.poseCard,
-    bgImage: require('@/assets/images/poses/model-turn.jpg'),
-  },
-  {
     id: 'video',
-    title: 'Video\nStudio',
+    title: 'Video Studio',
     description: 'AI showcase videos',
     icon: 'videocam-outline' as const,
     route: '/video-studio' as const,
@@ -66,19 +59,19 @@ const features = [
     bgImage: require('@/assets/images/poses/action-stride.jpg'),
   },
   {
-    id: 'history',
-    title: 'My\nHistory',
-    description: 'View past generations',
-    icon: 'time-outline' as const,
-    route: '/history' as const,
-    gradient: Gradients.charcoal,
-    bgImage: require('@/assets/images/poses/dramatic-profile.jpg'),
+    id: 'shop',
+    title: 'Fashion Store',
+    description: 'Browse & try curated items',
+    icon: 'storefront-outline' as const,
+    route: '/(tabs)/shop' as const,
+    gradient: Gradients.shopCard,
+    bgImage: require('@/assets/images/poses/coffee-shop.jpg'),
   },
 ];
 
 const quickActions = [
-  { id: 'upload', icon: 'camera' as const, label: 'Take\nSelfie', color: theme.gold },
-  { id: 'url', icon: 'link' as const, label: 'Paste\nURL', color: '#8b6cc7' },
+  { id: 'pose', icon: 'camera' as const, label: 'Pose\nStudio', color: '#6b9b7a' },
+  { id: 'upload', icon: 'shirt' as const, label: 'Try\nOn', color: theme.gold },
   { id: 'video', icon: 'videocam' as const, label: 'Video\nStudio', color: '#e8618c' },
   { id: 'history', icon: 'time' as const, label: 'My\nHistory', color: '#22c55e' },
 ];
@@ -202,7 +195,8 @@ export default function HomeScreen() {
             <Pressable
               key={action.id}
               onPress={() => {
-                if (action.id === 'upload' || action.id === 'url') router.push('/(tabs)/tryon');
+                if (action.id === 'pose') router.push('/(tabs)/style?tab=poses' as any);
+                else if (action.id === 'upload') router.push('/(tabs)/tryon');
                 else if (action.id === 'video') router.push('/video-studio' as any);
                 else if (action.id === 'history') router.push('/history' as any);
               }}
@@ -216,13 +210,50 @@ export default function HomeScreen() {
           ))}
         </Animated.View>
 
-        {/* Feature cards */}
+        {/* Hero Feature — Pose Studio */}
+        <Animated.View entering={FadeInDown.delay(250)}>
+          <Pressable
+            onPress={() => router.push(heroFeature.route as any)}
+            style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
+          >
+            <ImageBackground
+              source={heroFeature.bgImage}
+              style={styles.heroFeatureCard}
+              imageStyle={styles.heroFeatureBgImage}
+            >
+              <LinearGradient
+                colors={[heroFeature.gradient[0] + 'CC', heroFeature.gradient[1] + 'EE']}
+                style={styles.heroFeatureOverlay}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              >
+                <View style={styles.heroFeatureTop}>
+                  <View style={styles.heroFeatureTag}>
+                    <Ionicons name="star" size={10} color={theme.gold} />
+                    <Text style={styles.heroFeatureTagText}>{heroFeature.tag}</Text>
+                  </View>
+                  <View style={styles.featureArrow}>
+                    <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.9)" />
+                  </View>
+                </View>
+                <View>
+                  <Text style={styles.heroFeatureTitle}>{heroFeature.title}</Text>
+                  <Text style={styles.heroFeatureDesc}>{heroFeature.description}</Text>
+                </View>
+              </LinearGradient>
+            </ImageBackground>
+          </Pressable>
+        </Animated.View>
+
+        {/* AI Features — 5 total (4 in grid + 1 hero above) */}
         <Animated.View entering={FadeInDown.delay(300)} style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Features</Text>
+          <Text style={styles.sectionTitle}>AI Features</Text>
+          <View style={styles.featureCount}>
+            <Text style={styles.featureCountText}>5 Tools</Text>
+          </View>
         </Animated.View>
 
         <View style={styles.featureGrid}>
-          {features.map((feature, index) => (
+          {aiFeatures.map((feature, index) => (
             <Animated.View key={feature.id} entering={FadeInDown.delay(350 + index * 60)}>
               <Pressable
                 onPress={() => router.push(feature.route as any)}
@@ -477,6 +508,46 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: theme.gold,
     fontWeight: '600',
+  },
+
+  // Hero feature
+  heroFeatureCard: {
+    height: 140,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    marginBottom: Spacing.xl,
+    ...Shadows.md,
+  },
+  heroFeatureBgImage: { borderRadius: BorderRadius.xl },
+  heroFeatureOverlay: {
+    flex: 1, borderRadius: BorderRadius.xl,
+    padding: Spacing.base, justifyContent: 'space-between',
+  },
+  heroFeatureTop: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
+  heroFeatureTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: Spacing.md,
+    paddingVertical: 4, borderRadius: BorderRadius.full,
+  },
+  heroFeatureTagText: {
+    fontSize: 10, fontWeight: '700', color: theme.gold,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  heroFeatureTitle: {
+    fontSize: FontSize.xl, fontWeight: '800', color: '#fff', letterSpacing: -0.3,
+  },
+  heroFeatureDesc: {
+    fontSize: FontSize.sm, color: 'rgba(255,255,255,0.85)', marginTop: 2, lineHeight: 18,
+  },
+  featureCount: {
+    backgroundColor: theme.goldMuted, paddingHorizontal: Spacing.md,
+    paddingVertical: 3, borderRadius: BorderRadius.full,
+    borderWidth: 1, borderColor: theme.goldBorder,
+  },
+  featureCountText: {
+    fontSize: 10, fontWeight: '700', color: theme.gold,
   },
 
   // Feature grid
