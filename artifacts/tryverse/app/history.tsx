@@ -15,7 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { theme, Spacing, FontSize, BorderRadius, Shadows } from '@/constants/theme';
 import { apiGet, API_URL, getToken } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

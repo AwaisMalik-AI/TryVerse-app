@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   useWindowDimensions,
-  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -18,7 +17,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { theme, Gradients, Spacing, FontSize, BorderRadius, Shadows } from '@/constants/theme';
 import { apiGet, apiUpload, apiFetch, API_URL, getToken } from '@/lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,16 +41,6 @@ interface AspectRatio {
   description: string;
 }
 
-const VIDEO_STAGES = [
-  { icon: 'cloud-upload-outline' as const, text: 'Uploading your photo...', tip: 'Preparing your image for AI processing' },
-  { icon: 'scan-outline' as const, text: 'Analyzing your photo...', tip: 'AI is studying composition and lighting' },
-  { icon: 'body-outline' as const, text: 'Mapping body features...', tip: 'Detecting pose points and body structure' },
-  { icon: 'film-outline' as const, text: 'Generating video frames...', tip: 'Creating smooth motion sequences' },
-  { icon: 'color-palette-outline' as const, text: 'Enhancing colors & lighting...', tip: 'Applying professional color grading' },
-  { icon: 'sparkles-outline' as const, text: 'Adding finishing touches...', tip: 'Final rendering and quality check' },
-  { icon: 'checkmark-done-outline' as const, text: 'Almost there...', tip: 'Packaging your video for download' },
-];
-
 export default function VideoStudioScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -68,12 +57,8 @@ export default function VideoStudioScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [localVideoUri, setLocalVideoUri] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [stageIndex, setStageIndex] = useState(0);
-  const [statusMessage, setStatusMessage] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stageRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
     setLoadingPoses(true);
@@ -95,10 +80,7 @@ export default function VideoStudioScreen() {
   useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      if (stageRef.current) clearInterval(stageRef.current);
-    };
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
   const pickPhoto = async () => {
@@ -106,7 +88,6 @@ export default function VideoStudioScreen() {
     if (!result.canceled && result.assets[0]) {
       setPhotoUri(result.assets[0].uri);
       setVideoUrl(null);
-      setLocalVideoUri(null);
       setTaskId(null);
       setProgress(0);
     }
@@ -114,117 +95,47 @@ export default function VideoStudioScreen() {
 
   const [saving, setSaving] = useState(false);
 
-  const startStageRotation = () => {
-    setStageIndex(0);
-    stageRef.current = setInterval(() => {
-      setStageIndex((i) => (i + 1) % VIDEO_STAGES.length);
-    }, 6000);
-  };
-
-  const stopStageRotation = () => {
-    if (stageRef.current) {
-      clearInterval(stageRef.current);
-      stageRef.current = null;
-    }
-  };
-
-  const downloadVideoForPlayback = async (url: string) => {
-    try {
-      const filename = `tryverse_preview_${Date.now()}.mp4`;
-      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-      const headers: Record<string, string> = {};
-      const token = await getToken();
-      if (token && url.includes(API_URL.replace(/^https?:\/\//, ''))) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      const download = await FileSystem.downloadAsync(url, fileUri, { headers });
-      return download.uri;
-    } catch {
-      return null;
-    }
-  };
-
   const pollStatus = (id: string) => {
     let elapsed = 0;
-    const MAX_POLL_SECONDS = 600;
-    let pollFailures = 0;
-
-    startStageRotation();
-
+    const MAX_POLL_SECONDS = 300;
     pollRef.current = setInterval(async () => {
       elapsed += 5;
+      setProgress(Math.min(elapsed / 120 * 100, 95));
 
       if (elapsed >= MAX_POLL_SECONDS) {
         if (pollRef.current) clearInterval(pollRef.current);
-        stopStageRotation();
         setIsGenerating(false);
         setProgress(0);
         Alert.alert('Timeout', 'Video generation is taking too long. Please try again later.');
         return;
       }
 
-      const elapsedProgress = Math.min((elapsed / 150) * 90, 90);
-      setProgress((prev) => Math.max(prev, elapsedProgress));
-
       try {
         const res = await apiFetch(`/api/video/status/${id}`);
         if (res.ok) {
-          pollFailures = 0;
           const data = await res.json();
-
-          if (data.progress != null && data.progress > 0) {
-            setProgress((prev) => Math.max(prev, Math.min(data.progress, 95)));
-          }
-
-          if (data.status_message) setStatusMessage(data.status_message);
-
-          const videoPath = data.download_url || data.video_url;
-          if (data.status === 'completed' && videoPath) {
+          if (data.status === 'completed' && data.video_url) {
             if (pollRef.current) clearInterval(pollRef.current);
-            stopStageRotation();
-            const fullUrl = videoPath.startsWith('http') ? videoPath : `${API_URL}${videoPath}`;
-            setVideoUrl(fullUrl);
-
-            const localUri = await downloadVideoForPlayback(fullUrl);
-            if (localUri) setLocalVideoUri(localUri);
-
+            const url = data.video_url.startsWith('http') ? data.video_url : `${API_URL}${data.video_url}`;
+            setVideoUrl(url);
             setIsGenerating(false);
             setProgress(100);
             sendLocalNotification('Video Ready!', 'Your showcase video has been generated.');
           } else if (data.status === 'failed') {
             if (pollRef.current) clearInterval(pollRef.current);
-            stopStageRotation();
             setIsGenerating(false);
             setProgress(0);
             Alert.alert('Generation Failed', data.error || 'Video generation failed. Please try again.');
           }
-        } else {
-          pollFailures++;
-          if (pollFailures >= 5) {
-            if (pollRef.current) clearInterval(pollRef.current);
-            stopStageRotation();
-            setIsGenerating(false);
-            setProgress(0);
-            Alert.alert('Error', 'Lost connection to the server. Please try again.');
-          }
         }
       } catch {
-        pollFailures++;
-        if (__DEV__) console.log('[VIDEO] Poll error at', elapsed, 'seconds, failures:', pollFailures);
-        if (pollFailures >= 5) {
-          if (pollRef.current) clearInterval(pollRef.current);
-          stopStageRotation();
-          setIsGenerating(false);
-          setProgress(0);
-          Alert.alert('Error', 'Connection lost. Please check your internet and try again.');
-        }
+        if (__DEV__) console.log('[VIDEO] Poll error at', elapsed, 'seconds');
       }
     }, 5000);
   };
 
   const handleDownload = async () => {
-    const sourceUri = localVideoUri || videoUrl;
-    if (!sourceUri) return;
+    if (!videoUrl) return;
     try {
       setSaving(true);
       const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -233,19 +144,15 @@ export default function VideoStudioScreen() {
         setSaving(false);
         return;
       }
-
-      let saveUri = sourceUri;
-      if (sourceUri.startsWith('http')) {
-        const filename = `tryverse_video_${Date.now()}.mp4`;
-        const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-        const headers: Record<string, string> = {};
+      const filename = `tryverse_video_${Date.now()}.mp4`;
+      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+      const headers: Record<string, string> = {};
+      if (videoUrl.startsWith(API_URL)) {
         const token = await getToken();
         if (token) headers['Authorization'] = `Bearer ${token}`;
-        const download = await FileSystem.downloadAsync(sourceUri, fileUri, { headers });
-        saveUri = download.uri;
       }
-
-      await MediaLibrary.saveToLibraryAsync(saveUri);
+      const download = await FileSystem.downloadAsync(videoUrl, fileUri, { headers });
+      await MediaLibrary.saveToLibraryAsync(download.uri);
       Alert.alert('Saved!', 'Video has been saved to your gallery.');
     } catch {
       Alert.alert('Error', 'Could not save the video. Please try again.');
@@ -262,10 +169,7 @@ export default function VideoStudioScreen() {
 
     setIsGenerating(true);
     setVideoUrl(null);
-    setLocalVideoUri(null);
     setProgress(0);
-    setStageIndex(0);
-    setStatusMessage('');
 
     const formData: Record<string, string> = {
       pose_id: selectedPose,
@@ -281,72 +185,14 @@ export default function VideoStudioScreen() {
       }
     } else {
       setIsGenerating(false);
-      const errorMsg = res.status === 402 || res.status === 429
-        ? 'You have reached your credit limit. Please upgrade your plan.'
-        : (res.error as string) || 'Could not start video generation';
-      Alert.alert('Error', errorMsg);
+      Alert.alert('Error', (res.error as string) || 'Could not start video generation');
     }
   };
 
   const resolveUrl = (url: string) => url?.startsWith('http') ? url : `${API_URL}${url}`;
 
-  const stage = VIDEO_STAGES[stageIndex];
-
   return (
     <View style={styles.container}>
-      {/* Generating Overlay */}
-      {isGenerating && (
-        <Modal visible={isGenerating} transparent animationType="fade">
-          <LinearGradient colors={['rgba(10, 10, 20, 0.97)', 'rgba(30, 25, 15, 0.97)']} style={styles.genOverlay}>
-            <View style={styles.genContent}>
-              <View style={styles.genIconBox}>
-                <Animated.View entering={FadeIn}>
-                  <LinearGradient colors={Gradients.gold} style={styles.genIconBg}>
-                    <Ionicons name={stage.icon} size={36} color="#fff" />
-                  </LinearGradient>
-                </Animated.View>
-              </View>
-
-              <Text style={styles.genTitle}>{statusMessage || stage.text}</Text>
-              <Text style={styles.genTip}>{stage.tip}</Text>
-
-              <View style={styles.genProgressWrap}>
-                <View style={styles.genProgressTrack}>
-                  <LinearGradient
-                    colors={Gradients.gold}
-                    style={[styles.genProgressFill, { width: `${Math.max(progress, 2)}%` as any }]}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  />
-                </View>
-                <Text style={styles.genProgressText}>{Math.round(progress)}% complete</Text>
-              </View>
-
-              <View style={styles.genSteps}>
-                {VIDEO_STAGES.slice(0, 5).map((s, i) => (
-                  <View key={i} style={styles.genStep}>
-                    <View style={[styles.genStepDot, i <= stageIndex && styles.genStepDotActive]}>
-                      {i < stageIndex ? (
-                        <Ionicons name="checkmark" size={10} color="#fff" />
-                      ) : (
-                        <View style={[styles.genStepDotInner, i === stageIndex && styles.genStepDotInnerActive]} />
-                      )}
-                    </View>
-                    {i < 4 && <View style={[styles.genStepLine, i < stageIndex && styles.genStepLineActive]} />}
-                  </View>
-                ))}
-              </View>
-
-              <Text style={styles.genMinimize}>Video generation takes 1-3 minutes. You can minimize the app.</Text>
-
-              <View style={styles.genPrivacy}>
-                <Ionicons name="shield-checkmark" size={14} color={theme.gold} />
-                <Text style={styles.genPrivacyText}>Your photos are processed securely</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </Modal>
-      )}
-
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.sm }]}>
         {/* Header */}
         <View style={styles.headerRow}>
@@ -419,10 +265,9 @@ export default function VideoStudioScreen() {
                     {thumb ? (
                       <Image source={{ uri: resolveUrl(thumb) }} style={styles.poseImage} />
                     ) : (
-                      <LinearGradient colors={['rgba(201,169,110,0.12)', 'rgba(201,169,110,0.04)']} style={[styles.poseImage, styles.posePlaceholder]}>
-                        <Ionicons name="videocam-outline" size={20} color={theme.gold} />
-                        <Text style={styles.posePlaceholderName} numberOfLines={1}>{pose.name}</Text>
-                      </LinearGradient>
+                      <View style={[styles.poseImage, styles.posePlaceholder]}>
+                        <Ionicons name="videocam-outline" size={20} color={theme.textMuted} />
+                      </View>
                     )}
                     <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.poseOverlay}>
                       <Text style={styles.poseName} numberOfLines={1}>{pose.name}</Text>
@@ -450,18 +295,23 @@ export default function VideoStudioScreen() {
             size="lg"
             fullWidth
           />
+          {isGenerating && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <LinearGradient colors={Gradients.gold} style={[styles.progressFill, { width: `${progress}%` as any }]} />
+              </View>
+              <Text style={styles.progressText}>This may take 1-2 minutes. You can minimize the app.</Text>
+            </View>
+          )}
         </View>
 
         {/* Video result */}
-        {(videoUrl || localVideoUri) && (
+        {videoUrl && (
           <Animated.View entering={FadeIn} style={styles.resultSection}>
-            <View style={styles.resultHeader}>
-              <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
-              <Text style={styles.resultTitle}>Your Showcase Video</Text>
-            </View>
+            <Text style={styles.resultTitle}>Your Showcase Video</Text>
             <View style={styles.videoContainer}>
               <Video
-                source={{ uri: localVideoUri || videoUrl || '' }}
+                source={{ uri: videoUrl }}
                 style={styles.videoPlayer}
                 useNativeControls
                 resizeMode={ResizeMode.CONTAIN}
@@ -469,23 +319,7 @@ export default function VideoStudioScreen() {
                 shouldPlay
               />
             </View>
-            <View style={styles.resultActions}>
-              <GoldButton
-                title={saving ? "Saving..." : "Save to Gallery"}
-                icon="download-outline"
-                onPress={handleDownload}
-                loading={saving}
-                disabled={saving}
-                fullWidth
-              />
-              <GoldButton
-                title="Create Another"
-                icon="add-circle-outline"
-                onPress={() => { setVideoUrl(null); setLocalVideoUri(null); setPhotoUri(null); setSelectedPose(null); setProgress(0); }}
-                variant="outline"
-                fullWidth
-              />
-            </View>
+            <GoldButton title={saving ? "Saving..." : "Download Video"} icon="download-outline" onPress={handleDownload} loading={saving} disabled={saving} variant="outline" fullWidth />
           </Animated.View>
         )}
 
@@ -539,41 +373,19 @@ const styles = StyleSheet.create({
   poseCard: { borderRadius: BorderRadius.md, overflow: 'hidden', position: 'relative', aspectRatio: 3 / 4, borderWidth: 2, borderColor: 'transparent' },
   poseCardActive: { borderColor: theme.gold },
   poseImage: { width: '100%', height: '100%', resizeMode: 'cover', backgroundColor: theme.surface },
-  posePlaceholder: { justifyContent: 'center', alignItems: 'center', gap: 4 },
-  posePlaceholderName: { fontSize: 9, color: theme.textMuted, textAlign: 'center', paddingHorizontal: 4 },
+  posePlaceholder: { justifyContent: 'center', alignItems: 'center' },
   poseOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 6, paddingBottom: 6, paddingTop: 20 },
   poseName: { fontSize: 10, fontWeight: '600', color: '#fff' },
   poseCheck: { position: 'absolute', top: 4, right: 4 },
 
   generateSection: { gap: Spacing.md, marginBottom: Spacing.xl },
+  progressContainer: { gap: Spacing.sm },
+  progressBar: { height: 4, borderRadius: 2, backgroundColor: theme.border, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 2 },
+  progressText: { fontSize: FontSize.xs, color: theme.textMuted, textAlign: 'center' },
 
   resultSection: { gap: Spacing.base },
-  resultHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   resultTitle: { fontSize: FontSize.lg, fontWeight: '700', color: theme.text },
   videoContainer: { borderRadius: BorderRadius.lg, overflow: 'hidden', backgroundColor: theme.surface, ...Shadows.md },
   videoPlayer: { width: '100%', aspectRatio: 9 / 16 },
-  resultActions: { gap: Spacing.sm },
-
-  // Generating overlay
-  genOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  genContent: { alignItems: 'center', paddingHorizontal: Spacing.xl, width: '100%' },
-  genIconBox: { width: 120, height: 120, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing['2xl'] },
-  genIconBg: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', ...Shadows.gold },
-  genTitle: { fontSize: FontSize.lg, fontWeight: '700', color: '#fff', textAlign: 'center', marginBottom: 8, letterSpacing: -0.3 },
-  genTip: { fontSize: FontSize.sm, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 20, paddingHorizontal: Spacing.xl, marginBottom: Spacing['2xl'] },
-  genProgressWrap: { width: '80%', alignItems: 'center' },
-  genProgressTrack: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.1)', overflow: 'hidden', width: '100%' },
-  genProgressFill: { height: '100%', borderRadius: 2 },
-  genProgressText: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)', marginTop: 8, fontWeight: '600' },
-  genSteps: { flexDirection: 'row', alignItems: 'center', marginTop: Spacing['2xl'] },
-  genStep: { flexDirection: 'row', alignItems: 'center' },
-  genStepDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)' },
-  genStepDotActive: { backgroundColor: theme.gold, borderColor: theme.gold },
-  genStepDotInner: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.2)' },
-  genStepDotInnerActive: { backgroundColor: '#fff' },
-  genStepLine: { width: 30, height: 2, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 2 },
-  genStepLineActive: { backgroundColor: theme.gold },
-  genMinimize: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: Spacing.xl, lineHeight: 18 },
-  genPrivacy: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.lg, backgroundColor: 'rgba(201,169,110,0.08)', paddingHorizontal: Spacing.base, paddingVertical: 8, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: 'rgba(201,169,110,0.15)' },
-  genPrivacyText: { fontSize: FontSize.xs, color: 'rgba(255,255,255,0.5)', fontWeight: '500' },
 });

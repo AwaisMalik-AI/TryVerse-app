@@ -6,13 +6,9 @@ import { HapticTab } from '@/components/haptic-tab';
 import { theme, TAB_BAR_HEIGHT } from '@/constants/theme';
 import { BlurView } from 'expo-blur';
 import { StyloChat, StyloFAB } from '@/components/StyloChat';
-import { WhatsAppFAB } from '@/components/WhatsAppFAB';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const [styloOpen, setStyloOpen] = useState(false);
-  const insets = useSafeAreaInsets();
-  const tabBarHeight = TAB_BAR_HEIGHT + insets.bottom;
 
   return (
     <View style={{ flex: 1 }}>
@@ -22,7 +18,7 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarActiveTintColor: theme.gold,
         tabBarInactiveTintColor: theme.tabIconDefault,
-        tabBarStyle: [styles.tabBar, { height: tabBarHeight, paddingBottom: insets.bottom }],
+        tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
         tabBarBackground: () =>
           Platform.OS === 'ios' ? (
@@ -81,7 +77,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
-    <WhatsAppFAB />
     <StyloFAB onPress={() => setStyloOpen(true)} />
     <StyloChat visible={styloOpen} onClose={() => setStyloOpen(false)} />
     </View>
@@ -94,6 +89,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.tabBarBorder,
     elevation: 0,
+    height: Platform.OS === 'ios' ? TAB_BAR_HEIGHT : 68,
     paddingTop: 8,
     backgroundColor: Platform.OS === 'ios' ? 'transparent' : theme.tabBar,
   },

@@ -1,4 +1,5 @@
-import { View, Image, StyleSheet, ViewStyle } from 'react-native';
+import { View, Image, Text, StyleSheet, ViewStyle } from 'react-native';
+import { theme } from '@/constants/theme';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -7,32 +8,34 @@ interface LogoProps {
 }
 
 const sizeMap = {
-  sm: { mark: 28, full: 100, height: 28 },
-  md: { mark: 34, full: 130, height: 34 },
-  lg: { mark: 44, full: 170, height: 44 },
-  xl: { mark: 64, full: 240, height: 64 },
+  sm: { mark: 28, text: 16, gap: 5 },
+  md: { mark: 34, text: 20, gap: 6 },
+  lg: { mark: 44, text: 28, gap: 8 },
+  xl: { mark: 64, text: 36, gap: 10 },
 };
 
 export function Logo({ size = 'md', showText = true, style }: LogoProps) {
   const s = sizeMap[size];
 
-  if (showText) {
-    return (
-      <View style={[styles.container, style]}>
-        <Image
-          source={require('@/assets/images/tryverse-logo-full.png')}
-          style={{ width: s.full, height: s.height, resizeMode: 'contain' }}
-        />
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, { gap: s.gap }, style]}>
       <Image
-        source={require('@/assets/images/tryverse-logo.png')}
-        style={{ width: s.mark, height: s.mark, resizeMode: 'contain' }}
+        source={require('@/assets/images/tryverse-logo.jpg')}
+        style={[
+          styles.logoImage,
+          {
+            width: s.mark,
+            height: s.mark,
+            borderRadius: s.mark / 2,
+          },
+        ]}
       />
+      {showText && (
+        <Text style={[styles.brandText, { fontSize: s.text }]}>
+          <Text style={styles.brandGold}>Try</Text>
+          <Text style={styles.brandLight}>Verse</Text>
+        </Text>
+      )}
     </View>
   );
 }
@@ -41,5 +44,18 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  logoImage: {
+    resizeMode: 'cover',
+  },
+  brandText: {
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  brandGold: {
+    color: theme.gold,
+  },
+  brandLight: {
+    color: theme.text,
   },
 });
