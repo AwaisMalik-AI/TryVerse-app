@@ -1,0 +1,353 @@
+# TryVerse User App Spec
+ 
+## Goal
+Build a mobile-first TryVerse user app for shoppers. This is not a brand dashboard and not a desktop website.
+ 
+TryVerse helps users:
+- Try clothes on themselves
+- Ask Stylo for fashion advice
+- Browse clothing
+- Save and compare looks
+- Manage profile and settings
+ 
+## Design System
+Use the current TryVerse branding:
+- Dark premium UI
+- Black / deep navy / deep purple background
+- Purple, violet, magenta glow accents
+- Glassmorphism cards
+- Purple gradient buttons
+- Thin purple borders
+- Soft glow effects
+- Rounded modern mobile UI
+ 
+Fonts:
+- Headings: Clash Display Regular
+- Body/buttons/forms: Montserrat
+ 
+Image rules:
+- Clothing/apparel only
+- No shoes, bags, jewelry, perfume, beauty, furniture
+- No vulgar or revealing images
+- Use modest professional fashion visuals
+ 
+## Mobile First
+Primary viewport:
+- 390 x 844
+ 
+Also support:
+- 375 x 812
+- 430 x 932
+ 
+Rules:
+- This must look like a real mobile app
+- No desktop website layout
+- No large empty horizontal space
+- No desktop navbar on mobile
+- Use bottom navigation after login
+ 
+## Routes
+- `/` redirect to `/welcome`
+- `/welcome`
+- `/onboarding/try-on`
+- `/onboarding/stylo`
+- `/onboarding/save`
+- `/login`
+- `/signup`
+- `/home`
+- `/try-on`
+- `/try-on/result`
+- `/store`
+- `/store/product/:id`
+- `/stylo`
+- `/saved`
+- `/profile`
+- `/settings`
+ 
+## Welcome Screen
+Route: `/welcome`
+ 
+Heading:
+Try It Before You Buy It
+ 
+Subtext:
+See how clothes look on you before checkout.
+ 
+Buttons:
+- Get Started → `/onboarding/try-on`
+- I already have an account → `/login`
+ 
+Small text:
+Private by design. Your photos stay yours.
+ 
+Visual:
+Show a premium mobile try-on preview card with:
+- User photo
+- Clothing item
+- AI try-on result
+ 
+## Onboarding 1
+Route: `/onboarding/try-on`
+ 
+Heading:
+Try Clothes On Yourself
+ 
+Subtext:
+Upload your photo, choose an outfit, and see the look instantly.
+ 
+Show 3 steps:
+1. Upload photo
+2. Choose outfit
+3. See result
+ 
+Buttons:
+- Next → `/onboarding/stylo`
+- Skip → `/signup`
+ 
+## Onboarding 2
+Route: `/onboarding/stylo`
+ 
+Heading:
+Meet Stylo, Your AI Fashion Assistant
+ 
+Subtext:
+Get outfit advice, color suggestions, product ideas, and styling help in seconds.
+ 
+Show chat preview:
+User: What should I wear with this blazer?
+Stylo: Try cream trousers, a neutral top, and soft lavender tones for a polished look.
+ 
+Buttons:
+- Next → `/onboarding/save`
+- Skip → `/signup`
+ 
+## Onboarding 3
+Route: `/onboarding/save`
+ 
+Heading:
+Save Looks You Love
+ 
+Subtext:
+Keep your try-on results, compare outfits, and shop with more confidence.
+ 
+Show saved looks gallery.
+ 
+Buttons:
+- Create Free Account → `/signup`
+- Log In → `/login`
+ 
+## Login
+Route: `/login`
+ 
+Heading:
+Welcome back
+ 
+Subtext:
+Log in to continue trying outfits with TryVerse.
+ 
+Fields:
+- Email
+- Password
+ 
+Buttons:
+- Continue with Google
+- Continue with Apple
+- Log In → `/home`
+ 
+Link:
+- Sign up → `/signup`
+ 
+Demo:
+- Email: user@tryverse.app
+- Password: demo123
+ 
+## Signup
+Route: `/signup`
+ 
+Heading:
+Create your account
+ 
+Subtext:
+Start trying clothes on and saving your looks.
+ 
+Fields:
+- Full name
+- Email
+- Password
+ 
+Buttons:
+- Continue with Google
+- Continue with Apple
+- Create Account → `/home`
+ 
+Link:
+- Log In → `/login`
+ 
+Important:
+- No brand account option
+- This app is for users/shoppers only
+ 
+## Home
+Route: `/home`
+ 
+Greeting:
+Welcome back, Hussnain
+ 
+Subtext:
+What would you like to try today?
+ 
+Cards:
+- Virtual Try-On → `/try-on`
+- AI Fashion Store → `/store`
+- Ask Stylo → `/stylo`
+- Saved Looks → `/saved`
+ 
+Add privacy note:
+Your photos and generated results are deleted after your session.
+ 
+Bottom nav:
+- Home
+- Try-On
+- Store
+- Stylo
+- Saved
+ 
+## Virtual Try-On
+Route: `/try-on`
+ 
+Steps:
+1. Upload photo
+2. Choose clothing
+3. Generate result
+ 
+Inputs:
+- Upload photo
+- Paste product URL
+- Choose item from store
+ 
+Button:
+Generate Try-On → `/try-on/result`
+ 
+## Try-On Result
+Route: `/try-on/result`
+ 
+Show:
+- User photo
+- Selected clothing
+- Generated try-on result
+ 
+Actions:
+- Save Look → `/saved`
+- Try Another → `/try-on`
+- Ask Stylo → `/stylo`
+- Shop Similar → `/store`
+ 
+## Store
+Route: `/store`
+ 
+Show:
+- Search
+- Categories
+- Product grid
+ 
+Categories:
+- Dresses
+- Blazers
+- Shirts
+- Hoodies
+- Pants
+- Jackets
+ 
+Product card:
+- Image
+- Product name
+- Price
+- Try On button
+ 
+Product click → `/store/product/:id`
+ 
+## Product Detail
+Route: `/store/product/:id`
+ 
+Show:
+- Product image
+- Product name
+- Price
+- Store/brand
+- Size options
+ 
+Buttons:
+- Try On → `/try-on`
+- Save item
+ 
+## Stylo
+Route: `/stylo`
+ 
+Purpose:
+AI fashion assistant chat.
+ 
+Suggested prompts:
+- What should I wear today?
+- What colors suit me?
+- Style this blazer
+- Help me choose between two outfits
+- Find me something similar
+ 
+Use demo/static responses for prototype.
+ 
+## Saved Looks
+Route: `/saved`
+ 
+Show:
+- Saved try-on results
+- Compare looks
+- Favorite toggle
+- Delete button
+- Try again button
+ 
+Actions:
+- Ask Stylo about this look
+- Shop similar
+- Try again
+ 
+## Profile
+Route: `/profile`
+ 
+Show:
+- Name: Hussnain
+- Email: user@tryverse.app
+- Avatar
+- Body measurements
+- Preferred sizes
+- Privacy settings
+ 
+## Settings
+Route: `/settings`
+ 
+Show:
+- Account settings
+- Notifications
+- Privacy settings
+- Logout
+- Delete account
+ 
+Privacy toggles:
+- Auto-delete uploads after session
+- Auto-delete generated results after session
+- Do not use uploads for product improvement
+ 
+## QA
+Verify:
+- App is mobile-first
+- No desktop website layout
+- Fonts are correct
+- Branding is consistent
+- All buttons are linked
+- No placeholder `#`
+- No brand dashboard language
+- No brand account option
+- No vulgar images
+- No non-clothing images
+- No horizontal scroll
+- Fast loading
+- Smooth transitions
