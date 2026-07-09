@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   secondaryBtn: { backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginTop: 16 },
   secondaryBtnText: { color: '#fff', fontSize: 13, fontFamily: Typography.bodyMedium.fontFamily, textAlign: 'center' },
   previewArea: { position: 'relative', height: 280, borderRadius: 12, overflow: 'hidden' },
-  previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  previewImage: { width: '100%', height: '100%', resizeMode: 'contain', backgroundColor: 'rgba(255,255,255,0.03)' },
   checkBadge: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
   checkBadgeText: { color: '#fff', fontSize: 10 },
   changeBtn: { position: 'absolute', bottom: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },

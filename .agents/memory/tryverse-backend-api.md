@@ -15,3 +15,10 @@ description: Non-obvious response shapes and gotchas of the tryverse-production.
 # Expo web auth-restore flash
 
 - On direct URL loads, auth restores from storage asynchronously; screens gated on `!isAuthenticated` must first check auth `isLoading` and show a spinner, or e2e tests / users see a false "Sign in" gate.
+
+## Photo upload (store try-on)
+- POST /api/store/upload-user-image requires query param `body_type` in {upper_body, full_body} — anything else (e.g. "average") returns 422.
+- On Expo web, RN's `{uri,name,type}` FormData trick sends "[object Object]" and the backend 422s. **How to apply:** on web, fetch the picked URI to a Blob and append a real File in apiUpload.
+
+## Image display rule
+- Large previews/results (product hero, selfie preview, try-on/pose/video results) use resizeMode 'contain' so nothing is cropped; keep 'cover' only for small grid thumbnails.

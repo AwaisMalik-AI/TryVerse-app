@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   miniLabel: { position: 'absolute', bottom: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   miniLabelText: { color: '#fff', fontSize: 9, fontFamily: Typography.bodyMedium.fontFamily, textTransform: 'uppercase' },
   resultCard: { marginHorizontal: 20, marginTop: 16, borderRadius: 24, overflow: 'hidden', aspectRatio: 3 / 4, borderWidth: 1, borderColor: 'rgba(216,180,254,0.35)', shadowColor: Colors.primary, shadowOpacity: 0.4, shadowRadius: 20, backgroundColor: 'rgba(255,255,255,0.04)' },
-  resultImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  resultImg: { width: '100%', height: '100%', resizeMode: 'contain' },
   resultBadge: { position: 'absolute', bottom: 16, left: 16, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 6 },
   resultBadgeText: { color: '#fff', fontSize: 12, fontFamily: Typography.bodyMedium.fontFamily },
   detailsCard: { marginHorizontal: 20, marginTop: 16, padding: 16, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.06)' },

@@ -221,11 +221,17 @@ export async function apiUpload(
     const ext = match ? match[1].toLowerCase() : 'jpeg';
     const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
 
-    formData.append(fieldName, {
-      uri: fileUri,
-      name: filename,
-      type,
-    } as unknown as Blob);
+    if (Platform.OS === 'web') {
+      const fileRes = await fetch(fileUri);
+      const blob = await fileRes.blob();
+      formData.append(fieldName, new File([blob], filename, { type: blob.type || type }));
+    } else {
+      formData.append(fieldName, {
+        uri: fileUri,
+        name: filename,
+        type,
+      } as unknown as Blob);
+    }
 
     if (extraFields) {
       Object.entries(extraFields).forEach(([key, value]) => {

@@ -96,7 +96,7 @@ export default function ProductDetailScreen() {
   const uploadSelfie = async (uri: string) => {
     setUploading(true);
     setUploadError(null);
-    const res = await apiUpload('/api/store/upload-user-image?body_type=average', uri, 'file');
+    const res = await apiUpload('/api/store/upload-user-image?body_type=full_body', uri, 'file');
     if (res.ok && res.data) {
       const data = res.data as { session_id?: number };
       setSessionId(data.session_id ?? null);
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   retryText: { color: '#fff', fontSize: 13, fontFamily: 'Montserrat_600SemiBold' },
   errorText: { color: '#fca5a5', fontSize: 12.5, fontFamily: 'Montserrat_400Regular', marginTop: 8 },
   heroContainer: { width: '100%', height: 420, borderRadius: 24, overflow: 'hidden', position: 'relative', backgroundColor: 'rgba(255,255,255,0.04)' },
-  heroImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  heroImg: { width: '100%', height: '100%', resizeMode: 'contain' },
   cat: { fontSize: 11, textTransform: 'uppercase', fontFamily: 'Montserrat_600SemiBold', color: 'rgba(255,255,255,0.6)', letterSpacing: 0.5 },
   title: { fontSize: 22, color: '#fff', fontFamily: 'ClashDisplay-Semibold', marginTop: 4 },
   price: { fontSize: 20, color: '#d8b4fe', fontFamily: 'ClashDisplay-Semibold', marginTop: 8 },
@@ -354,11 +354,11 @@ const styles = StyleSheet.create({
   uploadArea: { borderRadius: 16, overflow: 'hidden', borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.15)' },
   uploadPlaceholder: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   uploadText: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontFamily: 'Montserrat_400Regular' },
-  selfiePreview: { width: '100%', height: 280, resizeMode: 'cover' },
+  selfiePreview: { width: '100%', height: 280, resizeMode: 'contain', backgroundColor: 'rgba(255,255,255,0.03)' },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(10,4,20,0.5)', justifyContent: 'center', alignItems: 'center' },
   generatingBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, gap: 12, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   resultContainer: { width: '100%', height: 420, borderRadius: 24, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.04)', marginBottom: 12 },
-  resultImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  resultImg: { width: '100%', height: '100%', resizeMode: 'contain' },
   cta: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
   ctaGradient: { height: 48, alignItems: 'center', justifyContent: 'center' },
   ctaText: { color: '#fff', fontSize: 14, fontFamily: 'Montserrat_500Medium' },

@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   secondaryBtn: { backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginTop: 16 },
   secondaryBtnText: { color: '#fff', fontSize: 13, fontFamily: Typography.bodyMedium.fontFamily, textAlign: 'center' },
   previewArea: { position: 'relative', height: 280, borderRadius: 12, overflow: 'hidden' },
-  previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  previewImage: { width: '100%', height: '100%', resizeMode: 'contain', backgroundColor: 'rgba(255,255,255,0.03)' },
   checkBadge: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
   checkBadgeText: { color: '#fff', fontSize: 10 },
   changeBtn: { position: 'absolute', bottom: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   feedbackText: { color: 'rgba(255,255,255,0.6)', fontSize: 12, paddingHorizontal: 20, marginTop: 8, marginBottom: 4, lineHeight: 18 },
   resultGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, marginTop: 12 },
   resultCard: { width: '48%', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  resultImage: { width: '100%', aspectRatio: 3 / 4, borderRadius: 8, marginBottom: 8, resizeMode: 'cover' },
+  resultImage: { width: '100%', aspectRatio: 3 / 4, borderRadius: 8, marginBottom: 8, resizeMode: 'contain' },
   resultSaveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', height: 34, borderRadius: 17 },
   resultSaveText: { color: '#fff', fontSize: 11, fontFamily: Typography.bodyMedium.fontFamily },
 });
