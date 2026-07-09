@@ -1,7 +1,9 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform, Pressable, Text } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Colors, Typography } from '@/constants/theme';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Typography } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
@@ -13,70 +15,111 @@ const tabs = [
   { name: 'saved', label: 'Saved', icon: "M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" },
 ] as const;
 
-export default function TabLayout() {
+function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          position: 'absolute',
-          bottom: 24 + insets.bottom,
-          left: 24,
-          right: 24,
-          height: 64,
-          borderRadius: 32,
-          backgroundColor: 'rgba(15, 10, 25, 0.75)',
-          borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.1)',
-          elevation: 0,
-        },
-        tabBarBackground: () => (
-          Platform.OS === 'ios' ? (
-            <BlurView tint="dark" intensity={80} style={[StyleSheet.absoluteFill, { borderRadius: 32 }]} />
-          ) : null
-        ),
-        tabBarShowLabel: false,
-      }}
-    >
+    <View style={[styles.barWrap, { bottom: 12 + insets.bottom }]} pointerEvents="box-none">
+      <View style={styles.bar}>
+        {Platform.OS === 'ios' ? (
+          <BlurView tint="dark" intensity={80} style={[StyleSheet.absoluteFill, { borderRadius: 36 }]} />
+        ) : null}
+        {state.routes.map((route, index) => {
+          const tab = tabs.find((t) => t.name === route.name);
+          if (!tab) return null;
+          const focused = state.index === index;
+
+          const onPress = () => {
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
+
+          const inner = (
+            <>
+              <Svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeOpacity={focused ? 1 : 0.75} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <Path d={tab.icon} />
+              </Svg>
+              <Text style={[styles.tabLabel, !focused && styles.tabLabelInactive]} numberOfLines={1}>
+                {tab.label}
+              </Text>
+            </>
+          );
+
+          return (
+            <Pressable key={route.key} onPress={onPress} style={styles.tabSlot} accessibilityRole="button" accessibilityState={focused ? { selected: true } : {}}>
+              {focused ? (
+                <LinearGradient colors={['#a855f7', '#7a3bff']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tabItemActive}>
+                  {inner}
+                </LinearGradient>
+              ) : (
+                <View style={styles.tabItem}>{inner}</View>
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+export default function TabLayout() {
+  return (
+    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
       {tabs.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.label,
-            tabBarIcon: ({ focused }) => (
-              <View style={[styles.tabItem, focused && styles.tabItemActive]}>
-                <Svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={focused ? '#fff' : Colors.textMuted} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <Path d={tab.icon} />
-                </Svg>
-                {focused && <Text style={styles.tabLabel}>{tab.label}</Text>}
-              </View>
-            ),
-          }}
-        />
+        <Tabs.Screen key={tab.name} name={tab.name} options={{ title: tab.label }} />
       ))}
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  tabItem: {
+  barWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    alignItems: 'center',
+  },
+  bar: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
+    height: 72,
+    borderRadius: 36,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(15, 10, 25, 0.88)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
+    elevation: 0,
+  },
+  tabSlot: {
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    gap: 6,
   },
   tabItemActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 24,
+    minWidth: 64,
   },
   tabLabel: {
     fontFamily: Typography.bodyMedium.fontFamily,
-    fontSize: 12,
+    fontSize: 11,
     color: '#fff',
+  },
+  tabLabelInactive: {
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });
