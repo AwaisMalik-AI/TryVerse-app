@@ -14,6 +14,7 @@ interface SubStatus {
   is_pro?: boolean;
   plan?: string;
   status?: string;
+  credits?: { is_pro?: boolean };
 }
 
 const PRO_FEATURES = [
@@ -31,6 +32,7 @@ export default function PricingScreen() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!isAuthenticated) {
@@ -38,8 +40,13 @@ export default function PricingScreen() {
       return;
     }
     setLoading(true);
+    setLoadError(null);
     const res = await apiGet<SubStatus>('/api/subscription/status');
-    if (res.ok && res.data) setStatus(res.data);
+    if (res.ok && res.data) {
+      setStatus(res.data);
+    } else {
+      setLoadError(res.error || 'Could not load your subscription status.');
+    }
     setLoading(false);
   }, [isAuthenticated]);
 
@@ -47,7 +54,10 @@ export default function PricingScreen() {
     load();
   }, [load]);
 
-  const isPro = status?.is_pro === true;
+  const isPro =
+    status?.is_pro === true ||
+    status?.credits?.is_pro === true ||
+    (!!status?.plan && status.plan !== 'free');
 
   const handleUpgrade = async () => {
     if (!isAuthenticated) {
@@ -96,6 +106,16 @@ export default function PricingScreen() {
         {loading ? (
           <View style={{ paddingTop: 60, alignItems: 'center' }}>
             <ActivityIndicator color="#c084fc" />
+          </View>
+        ) : loadError ? (
+          <View style={{ paddingTop: 60, alignItems: 'center', paddingHorizontal: 24 }}>
+            <Text style={{ color: '#f87171', fontSize: 13, textAlign: 'center' }}>{loadError}</Text>
+            <TouchableOpacity
+              onPress={load}
+              style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}
+            >
+              <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <>

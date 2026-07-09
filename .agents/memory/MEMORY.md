@@ -1,0 +1,1 @@
+- [TryVerse backend API quirks](tryverse-backend-api.md) — is_pro nested under credits in subscription status; auth-restore flash needs isLoading spinner gates.

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, ActivityIndicator, Linking, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { TryVerseLogo } from '@/components/TryVerseLogo';
@@ -7,7 +7,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth';
 import { useTryVerse } from '@/lib/local-store';
-import { apiGet, apiFetch } from '@/lib/api';
+import { apiGet, apiFetch, API_URL } from '@/lib/api';
 
 type SheetKey = null | "measurements" | "history" | "help" | "support";
 
@@ -20,25 +20,23 @@ interface Measurements {
 }
 
 interface HistoryItem {
-  id: number | string;
-  feature: string;
+  id?: number | string;
   result_image_url?: string;
+  image_url?: string;
   created_at?: string;
+  [key: string]: unknown;
 }
 
 const emptyMeasurements: Measurements = { height: null, chest_cm: null, waist_cm: null, shoulder_cm: null, unit: 'cm' };
 
-const featureLabel: Record<string, string> = {
-  tryon: 'Try-On',
-  pose: 'Pose Studio',
-  stylist: 'Stylo',
-  store_tryon: 'Store Try-On',
-  video: 'Video Studio',
-};
+function resolveUrl(url?: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  return url.startsWith('http') ? url : `${API_URL}${url}`;
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, logout } = useAuth();
   const { saved } = useTryVerse();
 
   const [sheet, setSheet] = useState<SheetKey>(null);
@@ -91,7 +89,7 @@ export default function ProfileScreen() {
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     setHistoryError(null);
-    const res = await apiGet<HistoryItem[]>('/api/user/history?limit=50');
+    const res = await apiGet<HistoryItem[]>('/api/tryon/history');
     if (res.ok && Array.isArray(res.data)) {
       setHistory(res.data);
     } else {
@@ -114,6 +112,16 @@ export default function ProfileScreen() {
       </View>
     </TouchableOpacity>
   );
+
+  if (authLoading) {
+    return (
+      <Screen safeArea withBottomNav>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color="#a855f7" size="large" />
+        </View>
+      </Screen>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -280,15 +288,26 @@ export default function ProfileScreen() {
                   ) : history.length === 0 ? (
                     <Text style={styles.footerText}>No history yet.</Text>
                   ) : (
-                    history.map((h) => (
-                      <View key={String(h.id)} style={styles.historyCard}>
-                        <Ionicons name="time-outline" size={16} color="#c084fc" />
-                        <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Montserrat_500Medium', marginLeft: 8 }}>
-                          {featureLabel[h.feature] || h.feature}
-                          {h.created_at ? ` · ${new Date(h.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}
-                        </Text>
-                      </View>
-                    ))
+                    history.map((h, idx) => {
+                      const img = resolveUrl(h.result_image_url) || resolveUrl(h.image_url);
+                      const date = h.created_at ? new Date(h.created_at) : null;
+                      const dateLabel = date && !isNaN(date.getTime())
+                        ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                        : null;
+                      return (
+                        <View key={String(h.id ?? idx)} style={styles.historyCard}>
+                          {img ? (
+                            <Image source={{ uri: img }} style={styles.historyThumb} />
+                          ) : (
+                            <Ionicons name="time-outline" size={16} color="#c084fc" />
+                          )}
+                          <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Montserrat_500Medium', marginLeft: 8 }}>
+                            Try-On
+                            {dateLabel ? ` · ${dateLabel}` : ''}
+                          </Text>
+                        </View>
+                      );
+                    })
                   )}
                 </View>
               )}
@@ -350,5 +369,6 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: '#c084fc', borderColor: 'transparent' },
   chipText: { fontSize: 12, color: '#fff', fontFamily: 'Montserrat_500Medium' },
   historyCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', padding: 12, borderRadius: 12 },
+  historyThumb: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' },
   errorText: { fontFamily: 'Montserrat_400Regular', fontSize: 12, color: '#fca5a5', textAlign: 'center' },
 });

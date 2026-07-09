@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { TypographyText } from '@/components/Typography';
@@ -13,6 +13,7 @@ interface SubStatus {
   is_pro?: boolean;
   plan?: string;
   status?: string;
+  credits?: { is_pro?: boolean };
 }
 
 export default function SuccessScreen() {
@@ -21,17 +22,29 @@ export default function SuccessScreen() {
 
   const [status, setStatus] = useState<SubStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    await refreshUser();
+    const res = await apiGet<SubStatus>('/api/subscription/status');
+    if (res.ok && res.data) {
+      setStatus(res.data);
+    } else {
+      setLoadError(res.error || 'Could not confirm your subscription status.');
+    }
+    setLoading(false);
+  }, [refreshUser]);
 
   useEffect(() => {
-    (async () => {
-      await refreshUser();
-      const res = await apiGet<SubStatus>('/api/subscription/status');
-      if (res.ok && res.data) setStatus(res.data);
-      setLoading(false);
-    })();
-  }, []);
+    load();
+  }, [load]);
 
-  const isPro = status?.is_pro === true;
+  const isPro =
+    status?.is_pro === true ||
+    status?.credits?.is_pro === true ||
+    (!!status?.plan && status.plan !== 'free');
 
   return (
     <Screen safeArea>
@@ -55,6 +68,16 @@ export default function SuccessScreen() {
           <View style={styles.receiptCard}>
             {loading ? (
               <ActivityIndicator color="#c084fc" />
+            ) : loadError ? (
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: '#f87171', fontSize: 13, textAlign: 'center' }}>{loadError}</Text>
+                <TouchableOpacity
+                  onPress={load}
+                  style={{ marginTop: 12, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Retry</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <>
                 <View style={styles.row}><Text style={styles.rowLabel}>Plan</Text><Text style={[styles.rowValue, { color: '#c084fc', fontWeight: 'bold' }]}>{isPro ? 'Pro' : (status?.plan || 'Free')}</Text></View>

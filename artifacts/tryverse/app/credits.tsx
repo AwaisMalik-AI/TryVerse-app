@@ -7,18 +7,41 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { apiGet, apiPost } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
+interface Credits {
+  used?: number;
+  remaining?: number;
+  extra?: number;
+  limit?: number;
+  unlimited?: boolean;
+  is_pro?: boolean;
+  reset_at?: string;
+}
+
 interface SubStatus {
   is_pro?: boolean;
   plan?: string;
-  status?: string;
-  current_period_end?: string;
+  subscription_status?: string;
+  subscription_ends_at?: string;
+  credits?: Credits;
 }
 
 const PRO_FEATURES = ['Unlimited AI generations', 'No watermarks on results', 'Priority AI processing', 'HD downloads'];
 
+function formatDate(value?: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function capitalize(value?: string): string {
+  if (!value) return '';
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 export default function CreditsScreen() {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [status, setStatus] = useState<SubStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +69,14 @@ export default function CreditsScreen() {
     load();
   }, [load]);
 
-  const isPro = status?.is_pro === true;
+  const isPro =
+    status?.is_pro === true ||
+    status?.credits?.is_pro === true ||
+    (!!status?.plan && status.plan !== 'free');
+  const credits = status?.credits;
+  const unlimited = credits?.unlimited === true;
+  const planName = capitalize(status?.plan) || (isPro ? 'Pro' : 'Free');
+  const resetDate = formatDate(credits?.reset_at);
 
   const handleUpgrade = async () => {
     setActionError(null);
@@ -83,7 +113,11 @@ export default function CreditsScreen() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {!isAuthenticated ? (
+        {authLoading ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator color="#a855f7" size="large" />
+          </View>
+        ) : !isAuthenticated ? (
           <View style={styles.section}>
             <View style={styles.stateBox}>
               <Text style={styles.stateTitle}>Sign in to view your plan</Text>
@@ -119,14 +153,44 @@ export default function CreditsScreen() {
                   <View>
                     <Text style={styles.heroSub}>Current plan</Text>
                     <Text style={styles.heroTitle}>
-                      <Text style={styles.gradText}>{isPro ? 'Pro' : 'Free'}</Text> plan
+                      <Text style={styles.gradText}>{planName}</Text> plan
                     </Text>
-                    {status?.status ? <Text style={styles.heroDesc}>Status: {status.status}</Text> : null}
+                    {status?.subscription_status ? <Text style={styles.heroDesc}>Status: {status.subscription_status}</Text> : null}
                   </View>
                   <View style={styles.proAvatar}>
                     <Ionicons name={isPro ? 'diamond' : 'person-outline'} size={18} color="#fff" />
                   </View>
                 </View>
+
+                {credits ? (
+                  <View style={styles.creditsBlock}>
+                    <Text style={styles.creditsLabel}>Credits remaining</Text>
+                    <Text style={styles.creditsValue}>{unlimited ? 'Unlimited' : (credits.remaining ?? 0)}</Text>
+                    {!unlimited ? (
+                      <View style={styles.creditsBreakdown}>
+                        {typeof credits.used === 'number' ? (
+                          <View style={styles.breakItem}>
+                            <Text style={styles.breakNum}>{credits.used}</Text>
+                            <Text style={styles.breakLabel}>Used</Text>
+                          </View>
+                        ) : null}
+                        {typeof credits.limit === 'number' ? (
+                          <View style={styles.breakItem}>
+                            <Text style={styles.breakNum}>{credits.limit}</Text>
+                            <Text style={styles.breakLabel}>Limit</Text>
+                          </View>
+                        ) : null}
+                        {typeof credits.extra === 'number' ? (
+                          <View style={styles.breakItem}>
+                            <Text style={styles.breakNum}>{credits.extra}</Text>
+                            <Text style={styles.breakLabel}>Extra</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    ) : null}
+                    {resetDate ? <Text style={styles.resetText}>Resets on {resetDate}</Text> : null}
+                  </View>
+                ) : null}
 
                 {isPro ? (
                   <View style={styles.featuresGrid}>
@@ -203,6 +267,14 @@ const styles = StyleSheet.create({
   gradText: { color: '#c084fc' },
   heroDesc: { fontSize: 11.5, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.6)', marginTop: 8, lineHeight: 18 },
   proAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(124,58,237,0.2)', borderWidth: 1, borderColor: '#c084fc', alignItems: 'center', justifyContent: 'center' },
+  creditsBlock: { marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
+  creditsLabel: { fontSize: 10.5, fontFamily: 'Montserrat_600SemiBold', color: '#c4b5fd', textTransform: 'uppercase', letterSpacing: 2 },
+  creditsValue: { fontSize: 34, fontFamily: 'ClashDisplay-Semibold', color: '#fff', marginTop: 4 },
+  creditsBreakdown: { flexDirection: 'row', gap: 24, marginTop: 16 },
+  breakItem: { alignItems: 'flex-start' },
+  breakNum: { fontSize: 18, fontFamily: 'ClashDisplay-Semibold', color: '#fff' },
+  breakLabel: { fontSize: 10, fontFamily: 'Montserrat_500Medium', color: 'rgba(255,255,255,0.55)', marginTop: 2, textTransform: 'uppercase', letterSpacing: 1 },
+  resetText: { fontSize: 11.5, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.6)', marginTop: 14 },
   featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 20, gap: 10 },
   featureItem: { width: '48%', flexDirection: 'row', alignItems: 'center', gap: 6 },
   checkCircle: { width: 14, height: 14, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },

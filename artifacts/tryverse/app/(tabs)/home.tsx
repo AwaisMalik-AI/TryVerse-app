@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/lib/auth';
+import { apiGet } from '@/lib/api';
 
 const featPose = require('@/assets/images/design/tv-feat-pose.jpg');
 const featTryon = require('@/assets/images/design/tv-feat-tryon.jpg');
@@ -48,6 +49,32 @@ export default function HomeScreen() {
   const firstName = user?.full_name?.trim().split(/\s+/)[0] || '';
   const isPro = user?.is_pro === true;
 
+  const [planLabel, setPlanLabel] = useState<string>(isPro ? 'Pro plan' : 'Free plan');
+
+  useEffect(() => {
+    let active = true;
+    const capitalize = (v?: string) => (v ? v.charAt(0).toUpperCase() + v.slice(1) : '');
+    const fallback = isPro ? 'Pro plan' : 'Free plan';
+    setPlanLabel(fallback);
+    if (!isAuthenticated) return;
+    (async () => {
+      const res = await apiGet<{ plan?: string; is_pro?: boolean; credits?: { remaining?: number; unlimited?: boolean } }>('/api/subscription/status');
+      if (!active) return;
+      if (res.ok && res.data) {
+        const plan = capitalize(res.data.plan) || (res.data.is_pro ? 'Pro' : 'Free');
+        const credits = res.data.credits;
+        if (credits?.unlimited) {
+          setPlanLabel(`${plan} · Unlimited`);
+        } else if (typeof credits?.remaining === 'number') {
+          setPlanLabel(`${plan} · ${credits.remaining} credits`);
+        } else {
+          setPlanLabel(`${plan} plan`);
+        }
+      }
+    })();
+    return () => { active = false; };
+  }, [isAuthenticated, isPro]);
+
   return (
     <Screen safeArea withBottomNav>
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -75,7 +102,7 @@ export default function HomeScreen() {
               <Text style={styles.greetingDesc}>What would you like to try today?</Text>
               <TouchableOpacity onPress={() => router.push('/credits')} style={styles.creditPill}>
                 <View style={styles.creditDot} />
-                <Text style={styles.creditText}>{isPro ? 'Pro plan' : 'Free plan'}</Text>
+                <Text style={styles.creditText}>{planLabel}</Text>
               </TouchableOpacity>
             </>
           ) : (
