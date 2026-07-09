@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Text } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Text, ActivityIndicator, Platform, Linking } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { TypographyText } from '@/components/Typography';
 import { GlassCard } from '@/components/GlassCard';
@@ -7,34 +7,86 @@ import { Colors, Typography } from '@/constants/theme';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system/legacy';
+import { apiGet, apiUpload, API_URL, getToken } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import { sendLocalNotification } from '@/lib/notifications';
 
-const CATEGORIES = ["All", "Catalog", "Professional", "Casual", "Editorial", "Lifestyle", "Events", "Resort", "Fitness", "Action"];
-const GENDERS = ["All", "Female", "Male"];
-const MAX_POSES = 6;
+const MAX_POSES = 3;
 
-const POSES = [
-  { slug: "white-studio", name: "White Studio", desc: "Clean white e-commerce backdrop", image: require('@/assets/images/poses-new/catalog-white.jpg'), category: "Catalog", gender: "Female" },
-  { slug: "grey-backdrop", name: "Grey Backdrop", desc: "Neutral studio catalog look", image: require('@/assets/images/poses-new/catalog-grey.jpg'), category: "Catalog", gender: "Male" },
-  { slug: "pastel-studio", name: "Pastel Studio", desc: "Soft pastel product framing", image: require('@/assets/images/poses-new/catalog-pastel.jpg'), category: "Catalog", gender: "Female" },
-  { slug: "confident-standing", name: "Confident Standing", desc: "Straight and composed pose", image: require('@/assets/images/poses-new/pro-standing.jpg'), category: "Professional", gender: "Male" },
-  { slug: "executive-walk", name: "Executive Walk", desc: "Purposeful lobby stride", image: require('@/assets/images/poses-new/pro-walk.jpg'), category: "Professional", gender: "Female" },
-  { slug: "window-gaze", name: "Window Gaze", desc: "Soft daylight moment", image: require('@/assets/images/poses-new/edit-window.jpg'), category: "Editorial", gender: "Female" },
-];
+interface PosePreset {
+  id: number;
+  name: string;
+  slug: string;
+  category: string;
+  description: string | null;
+  thumbnail_url: string | null;
+  is_premium: boolean;
+  display_order: number;
+}
+
+function initialsFromName(name?: string | null): string {
+  if (!name) return '';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function resolveUrl(url: string): string {
+  if (!url) return '';
+  return url.startsWith('http') ? url : `${API_URL}${url}`;
+}
 
 export default function PoseStudioScreen() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+
+  const [presets, setPresets] = useState<PosePreset[]>([]);
+  const [loadingPresets, setLoadingPresets] = useState(true);
+  const [presetError, setPresetError] = useState<string | null>(null);
+
   const [photo, setPhoto] = useState<string | null>(null);
-  const [category, setCategory] = useState("All");
-  const [gender, setGender] = useState("All");
-  const [selected, setSelected] = useState<string[]>([]);
+  const [category, setCategory] = useState('all');
+  const [selected, setSelected] = useState<number[]>([]);
   const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+  const [premiumNote, setPremiumNote] = useState<string | null>(null);
+  const [limitNote, setLimitNote] = useState<string | null>(null);
+
+  const [results, setResults] = useState<string[]>([]);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [savingIdx, setSavingIdx] = useState<number | null>(null);
+  const [savedIdx, setSavedIdx] = useState<number | null>(null);
+
+  const initials = initialsFromName(user?.full_name);
+
+  const loadPresets = useCallback(async () => {
+    setLoadingPresets(true);
+    setPresetError(null);
+    const res = await apiGet<PosePreset[]>('/api/pose/presets');
+    if (res.ok && res.data) {
+      setPresets(res.data);
+    } else {
+      setPresetError(res.error || 'Could not load poses.');
+    }
+    setLoadingPresets(false);
+  }, []);
+
+  useEffect(() => {
+    loadPresets();
+  }, [loadPresets]);
+
+  const categories = ['all', ...Array.from(new Set(presets.map((p) => p.category)))];
+  const visiblePresets = category === 'all' ? presets : presets.filter((p) => p.category === category);
+  const selectedPresets = presets.filter((p) => selected.includes(p.id));
 
   const step = !photo ? 1 : selected.length === 0 ? 2 : 3;
   const canGenerate = !!photo && selected.length > 0 && !generating;
 
   const handlePickFile = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
+    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [3, 4],
@@ -42,28 +94,94 @@ export default function PoseStudioScreen() {
     });
     if (!result.canceled) {
       setPhoto(result.assets[0].uri);
+      setResults([]);
+      setFeedback(null);
+      setGenError(null);
     }
   };
 
-  const togglePose = (slug: string) => {
-    setSelected(prev => {
-      if (prev.includes(slug)) return prev.filter(s => s !== slug);
-      if (prev.length >= MAX_POSES) return prev;
-      return [...prev, slug];
+  const togglePose = (preset: PosePreset) => {
+    setPremiumNote(null);
+    setLimitNote(null);
+    if (preset.is_premium && !user?.is_pro) {
+      setPremiumNote('Premium poses are available for Pro members. Upgrade to unlock all poses.');
+      return;
+    }
+    setSelected((prev) => {
+      if (prev.includes(preset.id)) return prev.filter((id) => id !== preset.id);
+      if (prev.length >= MAX_POSES) {
+        setLimitNote(`You can select up to ${MAX_POSES} poses at a time.`);
+        return prev;
+      }
+      return [...prev, preset.id];
     });
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!canGenerate) return;
+    if (!isAuthenticated) {
+      setGenError('Please sign in to generate poses.');
+      return;
+    }
     setGenerating(true);
-    setTimeout(() => {
-      setGenerating(false);
-      router.push({ pathname: '/pose-studio/result', params: { photo, poses: selected.join(',') } });
-    }, 1700);
+    setGenError(null);
+    setResults([]);
+    setFeedback(null);
+    const res = await apiUpload('/api/pose/generate-from-presets', photo!, 'file', {
+      preset_ids: JSON.stringify(selected),
+    });
+    setGenerating(false);
+    if (res.ok && res.data) {
+      const data = res.data as { generated_image_urls?: string[]; ai_feedback?: string };
+      const urls = (data.generated_image_urls || []).map(resolveUrl);
+      if (urls.length > 0) {
+        setResults(urls);
+        setFeedback(data.ai_feedback || null);
+        sendLocalNotification('Image Ready!', `Your ${urls.length > 1 ? `${urls.length} poses are` : 'pose is'} ready.`);
+      } else {
+        setGenError('No poses were generated. Please try again.');
+      }
+    } else {
+      if (res.status === 402 || res.status === 429) {
+        setGenError('You have reached your credit limit. Please upgrade your plan.');
+      } else {
+        setGenError(res.error || 'Generation failed. Please try again.');
+      }
+    }
   };
 
-  const visiblePoses = POSES.filter(p => (category === "All" || p.category === category) && (gender === "All" || p.gender === gender));
-  const selectedPoses = POSES.filter(p => selected.includes(p.slug));
+  const handleSave = async (url: string, idx: number) => {
+    if (savingIdx !== null) return;
+    if (Platform.OS === 'web') {
+      Linking.openURL(url);
+      return;
+    }
+    setSavingIdx(idx);
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        setGenError('Please allow gallery access to save images.');
+        setSavingIdx(null);
+        return;
+      }
+      let saveUri = url;
+      if (url.startsWith('http')) {
+        const fileUri = `${FileSystem.cacheDirectory}pose_${Date.now()}.jpg`;
+        const headers: Record<string, string> = {};
+        const token = await getToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const download = await FileSystem.downloadAsync(url, fileUri, { headers });
+        saveUri = download.uri;
+      }
+      await MediaLibrary.saveToLibraryAsync(saveUri);
+      setSavedIdx(idx);
+      setTimeout(() => setSavedIdx(null), 2000);
+    } catch {
+      setGenError('Could not save the image. Please try again.');
+    } finally {
+      setSavingIdx(null);
+    }
+  };
 
   return (
     <Screen safeArea withBottomNav>
@@ -73,9 +191,9 @@ export default function PoseStudioScreen() {
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Image source={require('@/assets/images/tryverse-logo.png')} style={{ height: 26, width: 100, resizeMode: 'contain' }} />
-          <TouchableOpacity style={styles.avatar}>
-            <Text style={styles.avatarText}>HK</Text>
-          </TouchableOpacity>
+          <View style={styles.avatar}>
+            {initials ? <Text style={styles.avatarText}>{initials}</Text> : <Ionicons name="person" size={16} color="#fff" />}
+          </View>
         </View>
 
         <View style={styles.titleSection}>
@@ -85,9 +203,9 @@ export default function PoseStudioScreen() {
 
         <View style={styles.stepIndicator}>
           {[
-            { n: 1, label: "Photo" },
-            { n: 2, label: "Pose" },
-            { n: 3, label: "Generate" }
+            { n: 1, label: 'Photo' },
+            { n: 2, label: 'Pose' },
+            { n: 3, label: 'Generate' },
           ].map((s, i, arr) => (
             <React.Fragment key={s.n}>
               <View style={styles.stepItem}>
@@ -109,15 +227,12 @@ export default function PoseStudioScreen() {
               <TypographyText variant="bodyMedium" style={{ marginTop: 8, color: '#fff' }}>Choose outfit photo</TypographyText>
               <TypographyText variant="small" style={{ color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>Use a clear full-body photo</TypographyText>
               <TouchableOpacity style={styles.secondaryBtn} onPress={handlePickFile}><Text style={styles.secondaryBtnText}>Choose Photo</Text></TouchableOpacity>
-              <TouchableOpacity onPress={() => setPhoto(Image.resolveAssetSource(require('@/assets/images/design/tv-user.jpg')).uri)} style={{ marginTop: 12 }}>
-                <Text style={styles.demoBtnText}>Use demo photo</Text>
-              </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.previewArea}>
               <Image source={{ uri: photo }} style={styles.previewImage} />
               <View style={styles.checkBadge}><Ionicons name="checkmark" size={12} color="#fff" /><Text style={styles.checkBadgeText}>Photo uploaded</Text></View>
-              <TouchableOpacity onPress={() => setPhoto(null)} style={styles.changeBtn}><Text style={styles.changeBtnText}>Change</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => { setPhoto(null); setResults([]); }} style={styles.changeBtn}><Text style={styles.changeBtnText}>Change</Text></TouchableOpacity>
             </View>
           )}
         </GlassCard>
@@ -127,60 +242,114 @@ export default function PoseStudioScreen() {
             <TypographyText variant="bodySemibold" style={styles.cardTitle}>Choose Your Pose</TypographyText>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginBottom: 12 }}>Select up to {MAX_POSES}.</Text>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16, marginBottom: 12 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-              {CATEGORIES.map(c => (
-                <TouchableOpacity key={c} style={[styles.tab, category === c && styles.tabActive]} onPress={() => setCategory(c)}>
-                  <Text style={[styles.tabText, category === c && styles.tabTextActive]}>{c}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-              {GENDERS.map(g => (
-                <TouchableOpacity key={g} style={[styles.tab, gender === g && styles.tabActive]} onPress={() => setGender(g)}>
-                  <Text style={[styles.tabText, gender === g && styles.tabTextActive]}>{g}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.poseGrid}>
-              {visiblePoses.map(p => {
-                const isSel = selected.includes(p.slug);
-                const disabled = !isSel && selected.length >= MAX_POSES;
-                return (
-                  <TouchableOpacity key={p.slug} style={[styles.poseCard, isSel && styles.poseCardActive, disabled && { opacity: 0.4 }]} onPress={() => togglePose(p.slug)} disabled={disabled}>
-                    <View style={styles.poseMedia}>
-                      <Image source={p.image} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
-                      <View style={styles.genderBadge}><Text style={{ fontSize: 9, color: '#fff', fontWeight: 'bold' }}>{p.gender === 'Female' ? 'F' : 'M'}</Text></View>
-                      {isSel && <View style={styles.poseCheck}><Ionicons name="checkmark" size={14} color="#fff" /></View>}
-                    </View>
-                    <Text style={styles.poseName} numberOfLines={1}>{p.name}</Text>
-                    <Text style={styles.poseDesc} numberOfLines={2}>{p.desc}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {selectedPoses.length > 0 && (
-              <View style={styles.selectedOutfit}>
-                <View style={styles.fetchedThumb}>
-                  <Image source={selectedPoses[0].image} style={styles.fetchedImg} />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>Your selected poses ({selectedPoses.length}/{MAX_POSES})</Text>
-                  <Text style={styles.fetchedName} numberOfLines={1}>{selectedPoses.map(p => p.name).join(", ")}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setSelected([])}><Text style={styles.changeBtnText}>Clear</Text></TouchableOpacity>
+            {loadingPresets ? (
+              <ActivityIndicator size="large" color={Colors.primary} style={{ marginVertical: 32 }} />
+            ) : presetError ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{presetError}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={loadPresets}><Text style={styles.retryBtnText}>Retry</Text></TouchableOpacity>
               </View>
+            ) : presets.length === 0 ? (
+              <Text style={styles.emptyText}>No poses available right now.</Text>
+            ) : (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16, marginBottom: 16 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+                  {categories.map((c) => (
+                    <TouchableOpacity key={c} style={[styles.tab, category === c && styles.tabActive]} onPress={() => setCategory(c)}>
+                      <Text style={[styles.tabText, category === c && styles.tabTextActive]}>{c === 'all' ? 'All' : c.charAt(0).toUpperCase() + c.slice(1)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <View style={styles.poseGrid}>
+                  {visiblePresets.map((p) => {
+                    const isSel = selected.includes(p.id);
+                    const disabled = !isSel && selected.length >= MAX_POSES;
+                    const thumb = p.thumbnail_url ? resolveUrl(p.thumbnail_url) : null;
+                    return (
+                      <TouchableOpacity key={p.id} style={[styles.poseCard, isSel && styles.poseCardActive, disabled && { opacity: 0.4 }]} onPress={() => togglePose(p)} disabled={disabled}>
+                        <View style={styles.poseMedia}>
+                          {thumb ? (
+                            <Image source={{ uri: thumb }} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
+                          ) : (
+                            <View style={styles.posePlaceholder}><Ionicons name="body-outline" size={22} color="rgba(255,255,255,0.5)" /></View>
+                          )}
+                          {p.is_premium && <View style={styles.premiumBadge}><Ionicons name="star" size={9} color="#fff" /></View>}
+                          {isSel && <View style={styles.poseCheck}><Ionicons name="checkmark" size={14} color="#fff" /></View>}
+                        </View>
+                        <Text style={styles.poseName} numberOfLines={1}>{p.name}</Text>
+                        {p.description ? <Text style={styles.poseDesc} numberOfLines={2}>{p.description}</Text> : null}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {premiumNote && <Text style={styles.note}>{premiumNote}</Text>}
+                {limitNote && <Text style={styles.note}>{limitNote}</Text>}
+
+                {selectedPresets.length > 0 && (
+                  <View style={styles.selectedOutfit}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>Your selected poses ({selectedPresets.length}/{MAX_POSES})</Text>
+                      <Text style={styles.fetchedName} numberOfLines={1}>{selectedPresets.map((p) => p.name).join(', ')}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setSelected([])}><Text style={styles.changeBtnText}>Clear</Text></TouchableOpacity>
+                  </View>
+                )}
+              </>
             )}
           </GlassCard>
         </View>
 
+        {!isAuthenticated && (
+          <View style={styles.signInBox}>
+            <Text style={styles.signInText}>Sign in to generate poses.</Text>
+            <TouchableOpacity style={styles.signInBtn} onPress={() => router.push('/login')}><Text style={styles.signInBtnText}>Sign In</Text></TouchableOpacity>
+          </View>
+        )}
+
+        {genError && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{genError}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={handleGenerate}><Text style={styles.retryBtnText}>Retry</Text></TouchableOpacity>
+          </View>
+        )}
+
         <TouchableOpacity style={[styles.primaryBtn, !canGenerate && styles.primaryBtnDisabled]} onPress={handleGenerate} disabled={!canGenerate}>
-          {generating ? <Text style={styles.primaryBtnText}>Creating variations...</Text> : <Text style={styles.primaryBtnText}>Generate Poses{selected.length > 0 ? ` · ${selected.length}` : ""}</Text>}
+          {generating ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.primaryBtnText}>Creating variations...</Text>
+            </View>
+          ) : (
+            <Text style={styles.primaryBtnText}>Generate Poses{selected.length > 0 ? ` · ${selected.length}` : ''}</Text>
+          )}
         </TouchableOpacity>
         <Text style={styles.footerNote}>Your uploaded photo is deleted after your session.</Text>
 
+        {results.length > 0 && (
+          <View style={{ marginTop: 28 }}>
+            <TypographyText variant="bodySemibold" style={[styles.cardTitle, { paddingHorizontal: 20 }]}>Your Pose Results</TypographyText>
+            {feedback ? <Text style={styles.feedbackText}>{feedback}</Text> : null}
+            <View style={styles.resultGrid}>
+              {results.map((url, idx) => (
+                <View key={idx} style={styles.resultCard}>
+                  <Image source={{ uri: url }} style={styles.resultImage} />
+                  <TouchableOpacity style={styles.resultSaveBtn} onPress={() => handleSave(url, idx)} disabled={savingIdx === idx}>
+                    {savingIdx === idx ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name={savedIdx === idx ? 'checkmark' : (Platform.OS === 'web' ? 'open-outline' : 'download-outline')} size={14} color="#fff" />
+                        <Text style={styles.resultSaveText}>{savedIdx === idx ? 'Saved' : (Platform.OS === 'web' ? 'Open' : 'Save')}</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -211,7 +380,6 @@ const styles = StyleSheet.create({
   uploadArea: { alignItems: 'center', padding: 24, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderStyle: 'dashed' },
   secondaryBtn: { backgroundColor: 'rgba(255,255,255,0.08)', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginTop: 16 },
   secondaryBtnText: { color: '#fff', fontSize: 13, fontFamily: Typography.bodyMedium.fontFamily, textAlign: 'center' },
-  demoBtnText: { color: 'rgba(255,255,255,0.5)', fontSize: 11, textDecorationLine: 'underline' },
   previewArea: { position: 'relative', height: 280, borderRadius: 12, overflow: 'hidden' },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   checkBadge: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -225,17 +393,32 @@ const styles = StyleSheet.create({
   poseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   poseCard: { width: '48%', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 6, borderWidth: 1, borderColor: 'transparent' },
   poseCardActive: { borderColor: Colors.primary, backgroundColor: 'rgba(168,85,247,0.1)' },
-  poseMedia: { width: '100%', aspectRatio: 3/4, borderRadius: 8, overflow: 'hidden', marginBottom: 8, position: 'relative' },
-  genderBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  poseMedia: { width: '100%', aspectRatio: 3 / 4, borderRadius: 8, overflow: 'hidden', marginBottom: 8, position: 'relative', backgroundColor: 'rgba(255,255,255,0.05)' },
+  posePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  premiumBadge: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(168,85,247,0.9)', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   poseCheck: { position: 'absolute', bottom: 6, right: 6, backgroundColor: Colors.primary, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   poseName: { color: '#fff', fontSize: 11, fontFamily: Typography.bodyMedium.fontFamily, marginBottom: 2 },
   poseDesc: { color: 'rgba(255,255,255,0.5)', fontSize: 9 },
+  note: { color: '#f0abfc', fontSize: 11, marginTop: 12 },
   selectedOutfit: { flexDirection: 'row', alignItems: 'center', marginTop: 16, padding: 12, backgroundColor: 'rgba(168,85,247,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(168,85,247,0.3)' },
-  fetchedThumb: { width: 44, height: 44, borderRadius: 8, overflow: 'hidden' },
-  fetchedImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   fetchedName: { color: '#fff', fontSize: 13, fontFamily: Typography.bodyMedium.fontFamily },
   primaryBtn: { marginHorizontal: 20, marginTop: 24, backgroundColor: Colors.primary, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   primaryBtnDisabled: { opacity: 0.5 },
   primaryBtnText: { color: '#fff', fontSize: 14, fontFamily: Typography.bodyMedium.fontFamily },
-  footerNote: { color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', marginTop: 12, paddingHorizontal: 40 }
+  footerNote: { color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', marginTop: 12, paddingHorizontal: 40 },
+  errorBox: { marginHorizontal: 20, marginTop: 16, padding: 16, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)', alignItems: 'center' },
+  errorText: { color: '#fca5a5', fontSize: 12, textAlign: 'center', marginBottom: 10 },
+  retryBtn: { backgroundColor: 'rgba(255,255,255,0.1)', paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20 },
+  retryBtnText: { color: '#fff', fontSize: 12, fontFamily: Typography.bodyMedium.fontFamily },
+  emptyText: { color: 'rgba(255,255,255,0.5)', fontSize: 12, textAlign: 'center', marginVertical: 24 },
+  signInBox: { marginHorizontal: 20, marginTop: 16, padding: 16, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center' },
+  signInText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginBottom: 10 },
+  signInBtn: { backgroundColor: Colors.primary, paddingVertical: 8, paddingHorizontal: 24, borderRadius: 20 },
+  signInBtnText: { color: '#fff', fontSize: 12, fontFamily: Typography.bodyMedium.fontFamily },
+  feedbackText: { color: 'rgba(255,255,255,0.6)', fontSize: 12, paddingHorizontal: 20, marginTop: 8, marginBottom: 4, lineHeight: 18 },
+  resultGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, marginTop: 12 },
+  resultCard: { width: '48%', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  resultImage: { width: '100%', aspectRatio: 3 / 4, borderRadius: 8, marginBottom: 8, resizeMode: 'cover' },
+  resultSaveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)', height: 34, borderRadius: 17 },
+  resultSaveText: { color: '#fff', fontSize: 11, fontFamily: Typography.bodyMedium.fontFamily },
 });

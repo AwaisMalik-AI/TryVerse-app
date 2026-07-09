@@ -59,7 +59,7 @@ export function StyloFloatingAssistant() {
                 <Path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2"/>
               </Svg>
             </LinearGradient>
-            <Text style={styles.name}>Hi, I'm Stylo 👋</Text>
+            <Text style={styles.name}>Hi, I'm Stylo</Text>
           </View>
           
           <Text style={styles.message}>Need help choosing an outfit?</Text>

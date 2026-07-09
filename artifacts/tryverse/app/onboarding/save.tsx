@@ -44,7 +44,7 @@ export default function SaveOnboarding() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientTextContainer}
-              maskElement={<Text style={styles.titleGradient}>You Love</Text>}
+              {...({ maskElement: <Text style={styles.titleGradient}>You Love</Text> } as object)}
             >
               <Text style={[styles.titleGradient, { opacity: 0 }]}>You Love</Text>
             </LinearGradient>

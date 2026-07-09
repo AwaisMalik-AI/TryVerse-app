@@ -1,32 +1,87 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Text } from 'react-native';
+import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { TypographyText } from '@/components/Typography';
-import { Button } from '@/components/Button';
 import { GlassCard } from '@/components/GlassCard';
 import { Colors, Typography } from '@/constants/theme';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { tvActions } from '@/lib/local-store';
+import { useAuth } from '@/lib/auth';
+
+function initialsFromName(name?: string | null): string {
+  if (!name) return '';
+  const parts = name.trim().split(/\s+/);
+  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() || '').join('');
+}
 
 export default function TryOnResultScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  const photo = params.photo as string || Image.resolveAssetSource(require('@/assets/images/design/tv-user.jpg')).uri;
-  const resultImg = require('@/assets/images/design/tv-result.jpg');
-  const outfitImg = require('@/assets/images/design/tv-blazer-lavender.jpg');
+  const resultUrl = (params.resultUrl as string) || '';
+  const sourcePhoto = (params.sourcePhoto as string) || '';
+  const outfitName = (params.outfitName as string) || '';
+  const outfitImage = (params.outfitImage as string) || '';
+  const aiFeedback = (params.aiFeedback as string) || '';
+  const storeName = (params.storeName as string) || '';
+  const price = (params.price as string) || '';
+  const sourceLink = (params.sourceLink as string) || '';
+
+  const initials = initialsFromName(user?.full_name);
+
+  const details: { label: string; value: string }[] = [];
+  if (outfitName) details.push({ label: 'Outfit', value: outfitName });
+  if (price) details.push({ label: 'Price', value: price });
+  if (storeName) details.push({ label: 'Store', value: storeName });
 
   const handleSave = () => {
-    if (saving) return;
+    if (saving || saved || !resultUrl) return;
     setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      Alert.alert('Saved', 'Look saved successfully!');
-      router.push('/(tabs)/saved');
-    }, 500);
+    tvActions.saveLook({
+      outfit: {
+        slug: `tryon-${Date.now()}`,
+        name: outfitName || 'Try-On Look',
+        image: outfitImage ? { uri: outfitImage } : undefined,
+        tint: '#a855f7',
+        price: price || undefined,
+        store: storeName || undefined,
+      },
+      photo: sourcePhoto ? { uri: sourcePhoto } : null,
+      result: { uri: resultUrl },
+      size: '',
+      fitNote: aiFeedback || '',
+      tag: 'try-on',
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => router.push('/(tabs)/saved'), 900);
   };
+
+  if (!resultUrl) {
+    return (
+      <Screen safeArea withBottomNav>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Image source={require('@/assets/images/tryverse-logo.png')} style={{ height: 26, width: 100, resizeMode: 'contain' }} />
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.emptyState}>
+          <Ionicons name="sparkles-outline" size={40} color="rgba(255,255,255,0.4)" />
+          <TypographyText variant="bodySemibold" style={styles.emptyTitle}>No result yet</TypographyText>
+          <TypographyText variant="small" style={styles.emptySubtitle}>Generate a try-on to see your result here.</TypographyText>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push('/(tabs)/try-on')}>
+            <Text style={styles.primaryBtnText}>Go to Try-On</Text>
+          </TouchableOpacity>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen safeArea withBottomNav>
@@ -36,9 +91,15 @@ export default function TryOnResultScreen() {
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Image source={require('@/assets/images/tryverse-logo.png')} style={{ height: 26, width: 100, resizeMode: 'contain' }} />
-          <TouchableOpacity style={styles.avatar}>
-            <Text style={styles.avatarText}>HK</Text>
-          </TouchableOpacity>
+          {initials ? (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          ) : (
+            <View style={[styles.avatar, styles.avatarGeneric]}>
+              <Ionicons name="person" size={16} color="#fff" />
+            </View>
+          )}
         </View>
 
         <View style={styles.titleSection}>
@@ -46,40 +107,61 @@ export default function TryOnResultScreen() {
           <TypographyText variant="small" style={styles.subtitle}>Here's how the outfit looks on you.</TypographyText>
         </View>
 
-        <View style={styles.miniCards}>
-          <View style={styles.miniCard}>
-            <Image source={{ uri: photo }} style={styles.miniImg} />
-            <View style={styles.miniLabel}><Text style={styles.miniLabelText}>Your Photo</Text></View>
+        {(sourcePhoto || outfitImage) && (
+          <View style={styles.miniCards}>
+            {sourcePhoto ? (
+              <View style={styles.miniCard}>
+                <Image source={{ uri: sourcePhoto }} style={styles.miniImg} />
+                <View style={styles.miniLabel}><Text style={styles.miniLabelText}>Your Photo</Text></View>
+              </View>
+            ) : null}
+            {outfitImage ? (
+              <View style={styles.miniCard}>
+                <Image source={{ uri: outfitImage }} style={styles.miniImg} />
+                <View style={styles.miniLabel}><Text style={styles.miniLabelText}>Outfit</Text></View>
+              </View>
+            ) : null}
           </View>
-          <View style={styles.miniCard}>
-            <LinearGradient colors={['#b48cff', '#6d3bff']} style={styles.miniImg}>
-              <Image source={outfitImg} style={{ width: '100%', height: '100%', resizeMode: 'cover' }} />
-            </LinearGradient>
-            <View style={styles.miniLabel}><Text style={styles.miniLabelText}>Outfit</Text></View>
-          </View>
-        </View>
+        )}
 
         <View style={styles.resultCard}>
-          <Image source={resultImg} style={styles.resultImg} />
+          <Image source={{ uri: resultUrl }} style={styles.resultImg} />
           <View style={styles.resultBadge}>
             <Ionicons name="sparkles" size={12} color="#fff" />
             <Text style={styles.resultBadgeText}>Try-On Result</Text>
           </View>
         </View>
 
-        <GlassCard style={styles.detailsCard}>
-          <TypographyText variant="bodySemibold" style={styles.cardTitle}>Outfit Details</TypographyText>
-          <View style={styles.detailRow}><Text style={styles.detailLabel}>Outfit</Text><Text style={styles.detailValue}>Lavender Oversized Blazer</Text></View>
-          <View style={styles.detailRow}><Text style={styles.detailLabel}>Size</Text><Text style={styles.detailValue}>M</Text></View>
-          <View style={styles.detailRow}><Text style={styles.detailLabel}>Fit</Text><Text style={styles.detailValue}>Regular fit recommended</Text></View>
-          <View style={styles.detailRow}><Text style={styles.detailLabel}>Color</Text><Text style={styles.detailValue}>Lavender</Text></View>
-          <View style={styles.detailRow}><Text style={styles.detailLabel}>Store</Text><Text style={styles.detailValue}>TryVerse Store</Text></View>
-        </GlassCard>
+        {details.length > 0 && (
+          <GlassCard style={styles.detailsCard}>
+            <TypographyText variant="bodySemibold" style={styles.cardTitle}>Outfit Details</TypographyText>
+            {details.map((d) => (
+              <View key={d.label} style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{d.label}</Text>
+                <Text style={styles.detailValue}>{d.value}</Text>
+              </View>
+            ))}
+          </GlassCard>
+        )}
+
+        {aiFeedback ? (
+          <GlassCard style={styles.detailsCard}>
+            <TypographyText variant="bodySemibold" style={styles.cardTitle}>Stylist Feedback</TypographyText>
+            <Text style={styles.feedbackText}>{aiFeedback}</Text>
+          </GlassCard>
+        ) : null}
 
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleSave} disabled={saving}>
-            <Text style={styles.primaryBtnText}>{saving ? "Saving…" : "Save Look"}</Text>
-          </TouchableOpacity>
+          {saved ? (
+            <View style={[styles.primaryBtn, styles.savedBtn]}>
+              <Ionicons name="checkmark-circle" size={18} color="#fff" />
+              <Text style={styles.primaryBtnText}>Saved</Text>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleSave} disabled={saving}>
+              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.primaryBtnText}>Save Look</Text>}
+            </TouchableOpacity>
+          )}
           <View style={styles.actionGrid}>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/(tabs)/try-on')}><Text style={styles.secondaryBtnText}>Try Another</Text></TouchableOpacity>
             <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/(tabs)/stylo')}><Text style={styles.secondaryBtnText}>Ask Stylo</Text></TouchableOpacity>
@@ -97,6 +179,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20 },
   iconBtn: { width: 40, height: 40, justifyContent: 'center' },
   avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  avatarGeneric: { backgroundColor: 'rgba(255,255,255,0.12)' },
   avatarText: { color: '#fff', fontSize: 12, fontFamily: Typography.heading.fontFamily },
   titleSection: { paddingHorizontal: 20, marginTop: 20 },
   title: { fontSize: 24, color: '#fff' },
@@ -106,7 +189,7 @@ const styles = StyleSheet.create({
   miniImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   miniLabel: { position: 'absolute', bottom: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   miniLabelText: { color: '#fff', fontSize: 9, fontFamily: Typography.bodyMedium.fontFamily, textTransform: 'uppercase' },
-  resultCard: { marginHorizontal: 20, marginTop: 16, borderRadius: 24, overflow: 'hidden', aspectRatio: 3/4, borderWidth: 1, borderColor: 'rgba(216,180,254,0.35)', shadowColor: Colors.primary, shadowOpacity: 0.4, shadowRadius: 20 },
+  resultCard: { marginHorizontal: 20, marginTop: 16, borderRadius: 24, overflow: 'hidden', aspectRatio: 3 / 4, borderWidth: 1, borderColor: 'rgba(216,180,254,0.35)', shadowColor: Colors.primary, shadowOpacity: 0.4, shadowRadius: 20, backgroundColor: 'rgba(255,255,255,0.04)' },
   resultImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   resultBadge: { position: 'absolute', bottom: 16, left: 16, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 6 },
   resultBadgeText: { color: '#fff', fontSize: 12, fontFamily: Typography.bodyMedium.fontFamily },
@@ -114,11 +197,16 @@ const styles = StyleSheet.create({
   cardTitle: { color: '#fff', fontSize: 14, marginBottom: 12 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
   detailLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 12 },
-  detailValue: { color: '#fff', fontSize: 12 },
+  detailValue: { color: '#fff', fontSize: 12, flexShrink: 1, textAlign: 'right', marginLeft: 12 },
+  feedbackText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, lineHeight: 18 },
   actions: { paddingHorizontal: 20, marginTop: 24, gap: 12 },
-  primaryBtn: { backgroundColor: Colors.primary, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  primaryBtn: { backgroundColor: Colors.primary, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  savedBtn: { backgroundColor: 'rgba(34,197,94,0.85)' },
   primaryBtnText: { color: '#fff', fontSize: 14, fontFamily: Typography.bodyMedium.fontFamily },
   actionGrid: { flexDirection: 'row', gap: 8 },
   secondaryBtn: { flex: 1, backgroundColor: 'rgba(255,255,255,0.08)', height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  secondaryBtnText: { color: '#fff', fontSize: 11, fontFamily: Typography.bodyMedium.fontFamily }
+  secondaryBtnText: { color: '#fff', fontSize: 11, fontFamily: Typography.bodyMedium.fontFamily },
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, gap: 8, marginTop: 80 },
+  emptyTitle: { color: '#fff', fontSize: 16, marginTop: 8 },
+  emptySubtitle: { color: 'rgba(255,255,255,0.6)', textAlign: 'center' },
 });

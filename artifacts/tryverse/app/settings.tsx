@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { user } = useAuth();
   
   const [notif, setNotif] = useState({ updates: true, credits: true, tips: true, stores: false, reminders: true });
   const [privacy, setPrivacy] = useState({ uploads: true, results: true, improve: true, hide: false });
@@ -48,16 +48,12 @@ export default function SettingsScreen() {
         <Group title="Account">
           <View style={styles.row}>
             <Text style={styles.rowLabel}>Name</Text>
-            <Text style={styles.rowHint}>Hussnain</Text>
+            <Text style={styles.rowHint}>{user?.full_name || 'Not signed in'}</Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.rowLabel}>Email</Text>
-            <Text style={styles.rowHint}>hussnain@tryverse.app</Text>
+            <Text style={styles.rowHint}>{user?.email || '—'}</Text>
           </View>
-          <TouchableOpacity style={styles.row}>
-            <Text style={styles.rowLabel}>Change Password</Text>
-            <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.4)" />
-          </TouchableOpacity>
         </Group>
 
         <Group title="Notifications">

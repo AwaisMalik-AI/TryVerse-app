@@ -2,7 +2,7 @@ import { Colors } from '../constants/theme';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-export const TryVerseLogo = ({ height = 28 }: { height?: number }) => {
+export const TryVerseLogo = ({ height = 28 }: { height?: number; width?: number }) => {
   return (
     <View style={styles.container}>
       <Text style={[styles.wordmark, { fontSize: height * 0.9 }]}>TRY<Text style={styles.accent}>VERSE</Text></Text>

@@ -1,38 +1,109 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { TryVerseLogo } from '@/components/TryVerseLogo';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-
-const NAMES: Record<string, string> = {
-  "12th-tribe": "12th Tribe",
-  "frank-and-oak": "Frank And Oak",
-  "meshki": "Meshki",
-  "zara": "Zara",
-};
+import { apiGet, API_URL } from '@/lib/api';
 
 const cats = ["All", "Women", "Men"];
+const PAGE_SIZE = 10;
 
-const tints = [
-  ['#b48cff', '#6d3bff'],
-  ['#ffb3d1', '#c93bff'],
-  ['#e9d9c4', '#b39a7a'],
-  ['#3b6bff', '#7a3bff'],
-  ['#2a2233', '#0a0812'],
-  ['#7a8355', '#3d4426'],
-];
+interface Brand {
+  id: number;
+  name: string;
+  product_count: number;
+}
+
+interface Product {
+  id: number;
+  store_id: number;
+  store_name: string;
+  name: string;
+  brand: string | null;
+  gender?: 'women' | 'men';
+  price: string | null;
+  image_url: string;
+}
+
+function resolveUrl(u?: string | null): string {
+  if (!u) return '';
+  return u.startsWith('http') ? u : `${API_URL}${u}`;
+}
 
 export default function StoreDetailScreen() {
   const router = useRouter();
-  const { storeId } = useLocalSearchParams();
+  const { storeId } = useLocalSearchParams<{ storeId: string }>();
   const [cat, setCat] = useState("All");
-  const name = NAMES[storeId as string] ?? "Store";
+  const [search, setSearch] = useState("");
+
+  const [brand, setBrand] = useState<Brand | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const genderParam = cat === "Women" ? "women" : cat === "Men" ? "men" : undefined;
+
+  const fetchPage = useCallback(async (nextOffset: number, replace: boolean, searchTerm: string, gender?: string) => {
+    if (!storeId) return;
+    if (replace) { setLoading(true); setError(null); } else { setLoadingMore(true); }
+    let qs = `limit=${PAGE_SIZE}&offset=${nextOffset}`;
+    if (gender) qs += `&gender=${gender}`;
+    if (searchTerm) qs += `&search=${encodeURIComponent(searchTerm)}`;
+    const res = await apiGet<Product[]>(`/api/store/brands/${storeId}/products?${qs}`);
+    if (res.ok && res.data) {
+      const data = res.data;
+      setProducts((prev) => replace ? data : [...prev, ...data]);
+      setHasMore(data.length >= PAGE_SIZE);
+      setOffset(nextOffset + data.length);
+    } else if (replace) {
+      setError(res.error || 'Could not load products.');
+    }
+    if (replace) setLoading(false); else setLoadingMore(false);
+  }, [storeId]);
+
+  const loadBrand = useCallback(async () => {
+    if (!storeId) return;
+    const res = await apiGet<Brand[]>('/api/store/brands');
+    if (res.ok && res.data) {
+      const found = res.data.find((b) => String(b.id) === String(storeId));
+      if (found) setBrand(found);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    loadBrand();
+  }, [loadBrand]);
+
+  useEffect(() => {
+    fetchPage(0, true, search.trim(), genderParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId, cat]);
+
+  const runSearch = () => {
+    fetchPage(0, true, search.trim(), genderParam);
+  };
+
+  const name = brand?.name ?? "Store";
 
   return (
     <Screen safeArea withBottomNav>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          const nearEnd = layoutMeasurement.height + contentOffset.y >= contentSize.height - 200;
+          if (nearEnd && hasMore && !loadingMore && !loading) {
+            fetchPage(offset, false, search.trim(), genderParam);
+          }
+        }}
+        scrollEventThrottle={200}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
@@ -44,13 +115,21 @@ export default function StoreDetailScreen() {
 
         <View style={styles.section}>
           <Text style={styles.headingMain}>{name}</Text>
-          <Text style={styles.headingDesc}>19 products available for virtual try-on.</Text>
+          {brand && <Text style={styles.headingDesc}>{brand.product_count} products available for virtual try-on.</Text>}
         </View>
 
         <View style={styles.searchSection}>
           <View style={styles.searchBox}>
             <Ionicons name="search" size={16} color="rgba(255,255,255,0.6)" />
-            <Text style={styles.searchInput}>Search {name}...</Text>
+            <TextInput
+              placeholder={`Search ${name}...`}
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              style={styles.searchInput}
+              value={search}
+              onChangeText={setSearch}
+              onSubmitEditing={runSearch}
+              returnKeyType="search"
+            />
           </View>
         </View>
 
@@ -66,39 +145,58 @@ export default function StoreDetailScreen() {
           ))}
         </ScrollView>
 
-        <View style={styles.section}>
-          <View style={styles.prodGrid}>
-            {tints.map((t, i) => (
-              <TouchableOpacity 
-                key={i} 
-                style={styles.prodCard}
-                onPress={() => router.push(`/store/product/lavender-blazer`)}
-              >
-                <View style={styles.prodMedia}>
-                  <LinearGradient colors={t as [string, string]} style={StyleSheet.absoluteFill} />
-                </View>
-                <View style={styles.prodBody}>
-                  <Text style={styles.prodCat}>Look {i + 1}</Text>
-                  <Text style={styles.prodName} numberOfLines={1}>Curated outfit</Text>
-                  <View style={styles.prodRow}>
-                    <Text style={styles.prodPrice}>${60 + i * 8}</Text>
-                    <View style={styles.tryBtn}>
-                      <Text style={styles.tryBtnText}>View</Text>
+        {loading ? (
+          <View style={styles.stateBox}>
+            <ActivityIndicator size="large" color="#c084fc" />
+            <Text style={styles.stateText}>Loading products...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.stateBox}>
+            <Ionicons name="alert-circle-outline" size={32} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.stateText}>{error}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={runSearch}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : products.length === 0 ? (
+          <View style={styles.stateBox}>
+            <Text style={styles.stateText}>No products found.</Text>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <View style={styles.prodGrid}>
+              {products.map((p) => (
+                <TouchableOpacity 
+                  key={p.id} 
+                  style={styles.prodCard}
+                  onPress={() => router.push(`/store/product/${p.id}?storeId=${storeId}`)}
+                >
+                  <View style={styles.prodMedia}>
+                    <Image source={{ uri: resolveUrl(p.image_url) }} style={styles.prodImg} />
+                  </View>
+                  <View style={styles.prodBody}>
+                    <Text style={styles.prodCat}>{p.brand || p.store_name}</Text>
+                    <Text style={styles.prodName} numberOfLines={1}>{p.name}</Text>
+                    <View style={styles.prodRow}>
+                      <Text style={styles.prodPrice}>{p.price || ''}</Text>
+                      <View style={styles.tryBtn}>
+                        <Text style={styles.tryBtnText}>View</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              ))}
+            </View>
+            {loadingMore && (
+              <View style={{ paddingVertical: 20 }}>
+                <ActivityIndicator size="small" color="#c084fc" />
+              </View>
+            )}
+            {!hasMore && (
+              <Text style={styles.endText}>No more products</Text>
+            )}
           </View>
-        </View>
-
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.cta} onPress={() => router.push('/try-on')}>
-            <LinearGradient colors={['#7c3aed', '#a855f7', '#d946ef']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.ctaGradient}>
-              <Text style={styles.ctaText}>Start Try-On</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+        )}
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -116,15 +214,21 @@ const styles = StyleSheet.create({
   headingDesc: { fontSize: 12.5, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.6)', marginTop: 8 },
   searchSection: { paddingHorizontal: 20, marginTop: 16 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, paddingHorizontal: 16, height: 48, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  searchInput: { flex: 1, marginLeft: 10, color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'Montserrat_400Regular' },
+  searchInput: { flex: 1, marginLeft: 10, color: '#fff', fontSize: 13, fontFamily: 'Montserrat_400Regular' },
   chipRow: { paddingHorizontal: 20, marginTop: 16, gap: 8 },
   chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   chipActive: { backgroundColor: 'rgba(124,58,237,0.4)', borderColor: 'rgba(216,180,254,0.5)' },
   chipText: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontFamily: 'Montserrat_500Medium' },
   chipTextActive: { color: '#fff' },
+  stateBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 12 },
+  stateText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Montserrat_400Regular', textAlign: 'center', paddingHorizontal: 40 },
+  retryBtn: { marginTop: 4, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 16, backgroundColor: 'rgba(124,58,237,0.4)', borderWidth: 1, borderColor: 'rgba(216,180,254,0.5)' },
+  retryText: { color: '#fff', fontSize: 13, fontFamily: 'Montserrat_600SemiBold' },
+  endText: { textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 11, fontFamily: 'Montserrat_400Regular', marginTop: 16 },
   prodGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
   prodCard: { width: '48%', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  prodMedia: { width: '100%', aspectRatio: 3/4, position: 'relative' },
+  prodMedia: { width: '100%', aspectRatio: 3/4, position: 'relative', backgroundColor: 'rgba(255,255,255,0.04)' },
+  prodImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   prodBody: { padding: 10 },
   prodCat: { fontSize: 9, textTransform: 'uppercase', fontFamily: 'Montserrat_600SemiBold', color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 },
   prodName: { fontSize: 12, fontFamily: 'Montserrat_500Medium', color: '#fff', marginTop: 4 },
@@ -132,7 +236,4 @@ const styles = StyleSheet.create({
   prodPrice: { fontSize: 13, fontFamily: 'ClashDisplay-Semibold', color: '#d8b4fe' },
   tryBtn: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   tryBtnText: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#fff' },
-  cta: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
-  ctaGradient: { height: 48, alignItems: 'center', justifyContent: 'center' },
-  ctaText: { color: '#fff', fontSize: 14, fontFamily: 'Montserrat_500Medium' }
 });

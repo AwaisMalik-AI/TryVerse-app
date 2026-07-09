@@ -1,19 +1,37 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, ScrollView, Image, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { TypographyText } from '@/components/Typography';
 import { Colors, Typography } from '@/constants/theme';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { PACKS } from './index';
+import { apiGet } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+
+interface SubStatus {
+  is_pro?: boolean;
+  plan?: string;
+  status?: string;
+}
 
 export default function SuccessScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const packId = params.packId as string || "plus";
-  const pack = PACKS.find(p => p.id === packId) || PACKS[1];
-  const newBalance = 182 + pack.credits;
+  const { refreshUser } = useAuth();
+
+  const [status, setStatus] = useState<SubStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      await refreshUser();
+      const res = await apiGet<SubStatus>('/api/subscription/status');
+      if (res.ok && res.data) setStatus(res.data);
+      setLoading(false);
+    })();
+  }, []);
+
+  const isPro = status?.is_pro === true;
 
   return (
     <Screen safeArea>
@@ -30,15 +48,19 @@ export default function SuccessScreen() {
           <LinearGradient colors={['#7a3bff', '#c93bff']} style={styles.iconCircle}>
             <Ionicons name="checkmark" size={32} color="#fff" />
           </LinearGradient>
-          
-          <TypographyText variant="h1" style={styles.title}>Payment Successful</TypographyText>
-          <TypographyText variant="body" style={styles.subtitle}>Your credits have been added.</TypographyText>
+
+          <TypographyText variant="h1" style={styles.title}>You're all set</TypographyText>
+          <TypographyText variant="body" style={styles.subtitle}>Thanks for subscribing to TryVerse.</TypographyText>
 
           <View style={styles.receiptCard}>
-            <View style={styles.row}><Text style={styles.rowLabel}>Pack purchased</Text><Text style={styles.rowValue}>{pack.name}</Text></View>
-            <View style={styles.row}><Text style={styles.rowLabel}>Credits added</Text><Text style={styles.rowValue}>{pack.credits}</Text></View>
-            <View style={styles.row}><Text style={styles.rowLabel}>New balance</Text><Text style={[styles.rowValue, { color: '#c084fc', fontWeight: 'bold' }]}>{newBalance} credits</Text></View>
-            <View style={styles.row}><Text style={styles.rowLabel}>Receipt sent to</Text><Text style={styles.rowValue}>hussnain@tryverse.app</Text></View>
+            {loading ? (
+              <ActivityIndicator color="#c084fc" />
+            ) : (
+              <>
+                <View style={styles.row}><Text style={styles.rowLabel}>Plan</Text><Text style={[styles.rowValue, { color: '#c084fc', fontWeight: 'bold' }]}>{isPro ? 'Pro' : (status?.plan || 'Free')}</Text></View>
+                {status?.status ? <View style={styles.row}><Text style={styles.rowLabel}>Status</Text><Text style={styles.rowValue}>{status.status}</Text></View> : null}
+              </>
+            )}
           </View>
 
           <View style={styles.actions}>

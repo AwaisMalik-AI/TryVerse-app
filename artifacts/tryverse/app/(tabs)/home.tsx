@@ -6,9 +6,11 @@ import { Screen } from '@/components/Screen';
 import { TryVerseLogo } from '@/components/TryVerseLogo';
 import { StyloFloatingAssistant } from '@/components/StyloFloatingAssistant';
 import { TypographyText } from '@/components/Typography';
+import { UserAvatar } from '@/components/UserAvatar';
 import { Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@/lib/auth';
 
 const featPose = require('@/assets/images/design/tv-feat-pose.jpg');
 const featTryon = require('@/assets/images/design/tv-feat-tryon.jpg');
@@ -42,6 +44,9 @@ const ideas = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+  const firstName = user?.full_name?.trim().split(/\s+/)[0] || '';
+  const isPro = user?.is_pro === true;
 
   return (
     <Screen safeArea withBottomNav>
@@ -52,27 +57,42 @@ export default function HomeScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.iconBtn}>
               <Ionicons name="notifications-outline" size={20} color="#fff" />
-              <View style={styles.dotBadge} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatar}>
-              <Text style={styles.avatarText}>HK</Text>
-            </TouchableOpacity>
+            <UserAvatar size={36} onPress={() => router.push(isAuthenticated ? '/profile' : '/login')} />
           </View>
         </View>
 
         {/* Greeting */}
         <View style={styles.section}>
-          <Text style={styles.greetingSub}>Welcome back,</Text>
-          <View style={styles.greetingMainContainer}>
-            <LinearGradient colors={['#c084fc', '#a855f7', '#d946ef']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientMask}>
-              <TypographyText variant="h1" style={styles.greetingMain}>Hussnain</TypographyText>
-            </LinearGradient>
-          </View>
-          <Text style={styles.greetingDesc}>What would you like to try today?</Text>
-          <TouchableOpacity onPress={() => router.push('/credits')} style={styles.creditPill}>
-            <View style={styles.creditDot} />
-            <Text style={styles.creditText}>Pro · 182 credits</Text>
-          </TouchableOpacity>
+          {isAuthenticated ? (
+            <>
+              <Text style={styles.greetingSub}>Welcome back,</Text>
+              <View style={styles.greetingMainContainer}>
+                <LinearGradient colors={['#c084fc', '#a855f7', '#d946ef']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientMask}>
+                  <TypographyText variant="h1" style={styles.greetingMain}>{firstName || 'there'}</TypographyText>
+                </LinearGradient>
+              </View>
+              <Text style={styles.greetingDesc}>What would you like to try today?</Text>
+              <TouchableOpacity onPress={() => router.push('/credits')} style={styles.creditPill}>
+                <View style={styles.creditDot} />
+                <Text style={styles.creditText}>{isPro ? 'Pro plan' : 'Free plan'}</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.greetingSub}>Welcome to</Text>
+              <View style={styles.greetingMainContainer}>
+                <LinearGradient colors={['#c084fc', '#a855f7', '#d946ef']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientMask}>
+                  <TypographyText variant="h1" style={styles.greetingMain}>TryVerse</TypographyText>
+                </LinearGradient>
+              </View>
+              <Text style={styles.greetingDesc}>Sign in to try outfits, save looks, and more.</Text>
+              <TouchableOpacity onPress={() => router.push('/login')} style={styles.creditPill}>
+                <View style={styles.creditDot} />
+                <Text style={styles.creditText}>Sign in</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Privacy card */}

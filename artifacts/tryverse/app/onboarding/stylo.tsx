@@ -42,7 +42,7 @@ export default function StyloOnboarding() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientTextContainer}
-              maskElement={<Text style={styles.titleGradient}>AI Stylist</Text>}
+              {...({ maskElement: <Text style={styles.titleGradient}>AI Stylist</Text> } as object)}
             >
               <Text style={[styles.titleGradient, { opacity: 0 }]}>AI Stylist</Text>
             </LinearGradient>

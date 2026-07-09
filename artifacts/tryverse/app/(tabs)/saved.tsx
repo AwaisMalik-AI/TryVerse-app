@@ -3,54 +3,12 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Modal } fr
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { TryVerseLogo } from '@/components/TryVerseLogo';
+import { UserAvatar } from '@/components/UserAvatar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTryVerse, tvActions, SavedLook } from '@/lib/local-store';
 
-const blazerImg = require('@/assets/images/design/tv-blazer-lavender.jpg');
-const topImg = require('@/assets/images/design/tv-top.jpg');
-const pinkDressImg = require('@/assets/images/design/tv-pink-dress.jpg');
-const resultImg = require('@/assets/images/design/tv-result.jpg');
-const userImg = require('@/assets/images/design/tv-user.jpg');
-
-const NOW = Date.now();
 const DAY = 86400000;
-
-const DEMO: SavedLook[] = [
-  {
-    id: "demo-1",
-    outfit: { slug: "lavender-blazer", name: "Lavender Blazer Look", image: blazerImg, tint: '#b48cff', color: "Lavender", store: "TryVerse Store", price: "$88" },
-    photo: userImg,
-    result: resultImg,
-    size: "M",
-    fitNote: "Regular fit",
-    createdAt: NOW,
-    tag: "try-on",
-    favorite: true,
-  },
-  {
-    id: "demo-2",
-    outfit: { slug: "cream-sweater", name: "Cream Sweater Outfit", image: topImg, tint: '#e9d9c4', color: "Cream", store: "TryVerse Store", price: "$62" },
-    photo: userImg,
-    result: resultImg,
-    size: "S",
-    fitNote: "Relaxed fit",
-    createdAt: NOW - DAY,
-    tag: "stylo",
-    favorite: false,
-  },
-  {
-    id: "demo-3",
-    outfit: { slug: "pink-dress", name: "Pink Dress Compare", image: pinkDressImg, tint: '#f7c6d3', color: "Pink", store: "TryVerse Store", price: "$74" },
-    photo: userImg,
-    result: resultImg,
-    size: "M",
-    fitNote: "Slim fit",
-    createdAt: NOW - DAY * 4,
-    tag: "compare",
-    favorite: false,
-  },
-];
 
 type Filter = "all" | "try-on" | "stylo" | "compare" | "favorites";
 const FILTERS: { id: Filter; label: string }[] = [
@@ -80,15 +38,13 @@ export default function SavedScreen() {
   const router = useRouter();
   const { saved } = useTryVerse();
   const [filter, setFilter] = useState<Filter>("all");
-  const [localDemo, setLocalDemo] = useState<SavedLook[]>(DEMO);
-  
+
   const [detail, setDetail] = useState<SavedLook | null>(null);
   const [pendingDelete, setPendingDelete] = useState<SavedLook | null>(null);
 
   const looks: SavedLook[] = useMemo(() => {
-    const savedWithTags = saved.map((l) => ({ ...l, tag: l.tag ?? "try-on" as const }));
-    return savedWithTags.length > 0 ? [...savedWithTags, ...localDemo] : localDemo;
-  }, [saved, localDemo]);
+    return saved.map((l) => ({ ...l, tag: l.tag ?? "try-on" as const }));
+  }, [saved]);
 
   const filtered = useMemo(() => {
     if (filter === "all") return looks;
@@ -98,21 +54,12 @@ export default function SavedScreen() {
 
   function confirmDelete() {
     if (!pendingDelete) return;
-    const l = pendingDelete;
-    if (l.id.startsWith("demo-")) {
-      setLocalDemo((prev) => prev.filter((x) => x.id !== l.id));
-    } else {
-      tvActions.deleteLook(l.id);
-    }
+    tvActions.deleteLook(pendingDelete.id);
     setPendingDelete(null);
   }
 
   function toggleFav(l: SavedLook) {
-    if (l.id.startsWith("demo-")) {
-      setLocalDemo((prev) => prev.map((x) => (x.id === l.id ? { ...x, favorite: !x.favorite } : x)));
-    } else {
-      tvActions.toggleFavorite(l.id);
-    }
+    tvActions.toggleFavorite(l.id);
   }
 
   return (
@@ -126,9 +73,7 @@ export default function SavedScreen() {
             </TouchableOpacity>
             <TryVerseLogo height={30} width={120} />
           </View>
-          <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatar}>
-            <Text style={styles.avatarText}>HK</Text>
-          </TouchableOpacity>
+          <UserAvatar size={36} onPress={() => router.push('/profile')} />
         </View>
 
         {/* Heading */}
@@ -166,7 +111,7 @@ export default function SavedScreen() {
             filtered.map((look) => (
               <View key={look.id} style={styles.lookCard}>
                 <View style={[styles.lookMedia, { backgroundColor: look.outfit.tint }]}>
-                  <Image source={look.result} style={styles.lookImg} />
+                  <Image source={typeof look.result === 'string' ? { uri: look.result } : look.result} style={styles.lookImg} />
                   {look.tag === "compare" && <View style={styles.compareDiv} />}
                   <TouchableOpacity style={[styles.heartBtn, look.favorite && styles.heartBtnActive]} onPress={() => toggleFav(look)}>
                     <Ionicons name={look.favorite ? "heart" : "heart-outline"} size={14} color={look.favorite ? "#fff" : "rgba(255,255,255,0.7)"} />
@@ -197,7 +142,7 @@ export default function SavedScreen() {
           <View style={styles.modalContent}>
             <TouchableOpacity style={styles.closeBtn} onPress={() => setDetail(null)}><Ionicons name="close" size={20} color="#fff" /></TouchableOpacity>
             <View style={[styles.modalMedia, { backgroundColor: detail?.outfit?.tint }]}>
-              {detail?.result && <Image source={detail.result} style={styles.lookImg} />}
+              {detail?.result && <Image source={typeof detail.result === 'string' ? { uri: detail.result } : detail.result} style={styles.lookImg} />}
             </View>
             <View style={styles.modalBody}>
               <View style={styles.lookTag}><Text style={styles.lookTagText}>{TAG_LABEL[detail?.tag ?? "try-on"]}</Text></View>

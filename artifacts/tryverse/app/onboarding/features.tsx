@@ -75,7 +75,7 @@ export default function FeaturesOnboarding() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientTextContainer}
-              maskElement={<Text style={styles.titleGradient}>To Shop Smarter</Text>}
+              {...({ maskElement: <Text style={styles.titleGradient}>To Shop Smarter</Text> } as object)}
             >
               <Text style={[styles.titleGradient, { opacity: 0 }]}>To Shop Smarter</Text>
             </LinearGradient>

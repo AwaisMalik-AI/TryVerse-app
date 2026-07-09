@@ -3,7 +3,7 @@ import { Text, TextProps, StyleSheet } from 'react-native';
 import { Colors, Typography } from '../constants/theme';
 
 interface CustomTextProps extends TextProps {
-  variant?: 'h1' | 'h2' | 'h3' | 'body' | 'bodyMedium' | 'bodySemibold' | 'small';
+  variant?: 'h1' | 'h2' | 'h3' | 'subheading' | 'body' | 'bodyMedium' | 'bodySemibold' | 'small';
   color?: string;
 }
 
@@ -19,6 +19,9 @@ export const TypographyText = ({ variant = 'body', color = Colors.text, style, .
       break;
     case 'h3':
       textStyle = { fontFamily: Typography.subheading.fontFamily, fontSize: 20, lineHeight: 28 };
+      break;
+    case 'subheading':
+      textStyle = { fontFamily: Typography.subheading.fontFamily, fontSize: 18, lineHeight: 26 };
       break;
     case 'body':
       textStyle = { fontFamily: Typography.body.fontFamily, fontSize: 16, lineHeight: 24 };

@@ -1,44 +1,116 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TextInput } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/Screen';
 import { TryVerseLogo } from '@/components/TryVerseLogo';
 import { TypographyText } from '@/components/Typography';
-import { Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-
-const blazerImg = require('@/assets/images/design/tv-blazer-lavender.jpg');
-const topImg = require('@/assets/images/design/tv-top.jpg');
-const trousersImg = require('@/assets/images/design/tv-trousers.jpg');
+import { apiGet, API_URL } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 
 const categories = ["All", "Dresses", "Blazers", "Shirts", "Jackets", "Hoodies", "Pants"];
 
-const stores = [
-  { slug: "12th-tribe", name: "12th Tribe", count: 19, tint: ['#7a3bff', '#c93bff'] },
-  { slug: "frank-and-oak", name: "Frank And Oak", count: 24, tint: ['#3b6bff', '#7a3bff'] },
-  { slug: "meshki", name: "Meshki", count: 16, tint: ['#ff3b8a', '#c93bff'] },
-  { slug: "zara", name: "Zara", count: 32, tint: ['#c93bff', '#ff8a3b'] },
-];
+interface Brand {
+  id: number;
+  name: string;
+  logo_url: string | null;
+  website_url?: string;
+  product_count: number;
+  men_count?: number;
+  women_count?: number;
+  preview_images: string[];
+  partner_status?: 'gold' | 'standard';
+}
 
-const products = [
-  { slug: "lavender-blazer", name: "Lavender Oversized Blazer", price: 88, category: "Blazer", image: blazerImg, tint: ['#b48cff', '#6d3bff'] },
-  { slug: "cream-knit-sweater", name: "Cream Knit Sweater", price: 64, category: "Sweater", image: topImg, tint: ['#e9d9c4', '#b39a7a'] },
-  { slug: "pink-satin-dress", name: "Pink Satin Dress", price: 98, category: "Dress", tint: ['#ffb3d1', '#c93bff'] },
-  { slug: "white-linen-shirt", name: "White Linen Shirt", price: 54, category: "Shirt", tint: ['#f4f0e6', '#c9c2b0'] },
-  { slug: "black-cropped-jacket", name: "Black Cropped Jacket", price: 92, category: "Jacket", tint: ['#2a2233', '#0a0812'] },
-  { slug: "olive-wide-pants", name: "Olive Wide-Leg Pants", price: 76, category: "Pants", image: trousersImg, tint: ['#7a8355', '#3d4426'] },
-];
+interface Product {
+  id: number;
+  store_id: number;
+  store_name: string;
+  name: string;
+  brand: string | null;
+  description?: string;
+  gender?: 'women' | 'men';
+  price: string | null;
+  image_url: string;
+  source_url?: string;
+}
+
+function resolveUrl(u?: string | null): string {
+  if (!u) return '';
+  return u.startsWith('http') ? u : `${API_URL}${u}`;
+}
+
+function initialsFrom(name?: string | null): string {
+  if (!name) return '';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export default function StoreScreen() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
   const [activeCat, setActiveCat] = useState("All");
   const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [search, setSearch] = useState("");
+
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  const initials = initialsFrom(user?.full_name);
+
+  const load = useCallback(async (searchTerm?: string) => {
+    setLoading(true);
+    setError(null);
+    const brandsRes = await apiGet<Brand[]>('/api/store/brands');
+    if (!brandsRes.ok || !brandsRes.data) {
+      setError(brandsRes.error || 'Could not load stores.');
+      setLoading(false);
+      return;
+    }
+    const brandList = brandsRes.data;
+    setBrands(brandList);
+
+    if (brandList.length > 0) {
+      const firstId = brandList[0].id;
+      const qs = searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : '';
+      const prodRes = await apiGet<Product[]>(`/api/store/brands/${firstId}/products?limit=10&offset=0${qs}`);
+      if (prodRes.ok && prodRes.data) {
+        setProducts(prodRes.data);
+      } else {
+        setProducts([]);
+        setError(prodRes.error || 'Could not load products.');
+        setLoading(false);
+        return;
+      }
+    } else {
+      setProducts([]);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const runSearch = async () => {
+    setSearching(true);
+    await load(search.trim() || undefined);
+    setSearching(false);
+  };
 
   const visible = activeCat === "All"
     ? products
-    : products.filter((p) => p.category.toLowerCase() === activeCat.slice(0, -1).toLowerCase() || p.category.toLowerCase() + "s" === activeCat.toLowerCase());
+    : products.filter((p) => {
+        const hay = `${p.name} ${p.brand ?? ''}`.toLowerCase();
+        const term = activeCat.toLowerCase();
+        const singular = term.slice(0, -1);
+        return hay.includes(term) || hay.includes(singular);
+      });
 
   return (
     <Screen safeArea withBottomNav>
@@ -54,10 +126,13 @@ export default function StoreScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.iconBtn}>
               <Ionicons name="notifications-outline" size={20} color="#fff" />
-              <View style={styles.dotBadge} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatar}>
-              <Text style={styles.avatarText}>HK</Text>
+              {isAuthenticated && initials ? (
+                <Text style={styles.avatarText}>{initials}</Text>
+              ) : (
+                <Ionicons name="person" size={18} color="#fff" />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -76,7 +151,12 @@ export default function StoreScreen() {
               placeholder="Search dresses, blazers, shirts..." 
               placeholderTextColor="rgba(255,255,255,0.4)"
               style={styles.searchInput}
+              value={search}
+              onChangeText={setSearch}
+              onSubmitEditing={runSearch}
+              returnKeyType="search"
             />
+            {searching && <ActivityIndicator size="small" color="#c084fc" />}
           </View>
         </View>
 
@@ -93,69 +173,105 @@ export default function StoreScreen() {
           ))}
         </ScrollView>
 
-        {/* Featured stores */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <TypographyText variant="subheading" style={styles.sectionTitle}>Featured Stores</TypographyText>
-            <Text style={styles.sectionCount}>{stores.length} stores</Text>
+        {loading ? (
+          <View style={styles.stateBox}>
+            <ActivityIndicator size="large" color="#c084fc" />
+            <Text style={styles.stateText}>Loading stores...</Text>
           </View>
-          <View style={styles.storeList}>
-            {stores.map((s) => (
-              <TouchableOpacity key={s.slug} style={styles.storeCard} onPress={() => router.push(`/store/${s.slug}` as any)}>
-                <View style={styles.storeThumbs}>
-                  <LinearGradient colors={s.tint as [string, string]} style={[styles.storeThumb, { zIndex: 3 }]} />
-                  <LinearGradient colors={s.tint as [string, string]} style={[styles.storeThumb, { zIndex: 2, marginLeft: -12, opacity: 0.8 }]} />
-                  <LinearGradient colors={s.tint as [string, string]} style={[styles.storeThumb, { zIndex: 1, marginLeft: -12, opacity: 0.6 }]} />
-                </View>
-                <View style={styles.storeInfo}>
-                  <Text style={styles.storeName} numberOfLines={1}>{s.name}</Text>
-                  <Text style={styles.storeCount}>{s.count} products</Text>
-                </View>
-                <View style={styles.arrowIcon}>
-                  <Ionicons name="chevron-forward" size={14} color="#fff" />
-                </View>
-              </TouchableOpacity>
-            ))}
+        ) : error ? (
+          <View style={styles.stateBox}>
+            <Ionicons name="alert-circle-outline" size={32} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.stateText}>{error}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Trending outfits */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <TypographyText variant="subheading" style={styles.sectionTitle}>Trending Outfits</TypographyText>
-            <Text style={styles.sectionCount}>{visible.length} looks</Text>
-          </View>
-          <View style={styles.prodGrid}>
-            {visible.map((p) => (
-              <View key={p.slug} style={styles.prodCard}>
-                <TouchableOpacity 
-                  style={styles.prodMedia} 
-                  onPress={() => router.push(`/store/product/${p.slug}` as any)}
-                  activeOpacity={0.9}
-                >
-                  <LinearGradient colors={p.tint as [string, string]} style={StyleSheet.absoluteFill} />
-                  {p.image && <Image source={p.image} style={styles.prodImg} />}
-                  <TouchableOpacity 
-                    style={[styles.heartBtn, saved[p.slug] && styles.heartBtnActive]} 
-                    onPress={() => setSaved(s => ({ ...s, [p.slug]: !s[p.slug] }))}
-                  >
-                    <Ionicons name={saved[p.slug] ? "heart" : "heart-outline"} size={14} color={saved[p.slug] ? "#fff" : "rgba(255,255,255,0.7)"} />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-                <View style={styles.prodBody}>
-                  <Text style={styles.prodCat}>{p.category}</Text>
-                  <Text style={styles.prodName} numberOfLines={1}>{p.name}</Text>
-                  <View style={styles.prodRow}>
-                    <Text style={styles.prodPrice}>${p.price}</Text>
-                    <TouchableOpacity onPress={() => router.push('/try-on')} style={styles.tryBtn}>
-                      <Text style={styles.tryBtnText}>Try On</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
+        ) : (
+          <>
+            {/* Featured stores */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <TypographyText variant="subheading" style={styles.sectionTitle}>Featured Stores</TypographyText>
+                <Text style={styles.sectionCount}>{brands.length} stores</Text>
               </View>
-            ))}
-          </View>
-        </View>
+              {brands.length === 0 ? (
+                <Text style={styles.emptyText}>No stores available.</Text>
+              ) : (
+                <View style={styles.storeList}>
+                  {brands.map((s) => {
+                    const previews = (s.preview_images || []).slice(0, 3);
+                    return (
+                      <TouchableOpacity key={s.id} style={styles.storeCard} onPress={() => router.push(`/store/${s.id}`)}>
+                        <View style={styles.storeThumbs}>
+                          {previews.length > 0 ? previews.map((img, idx) => (
+                            <Image
+                              key={idx}
+                              source={{ uri: resolveUrl(img) }}
+                              style={[styles.storeThumb, { zIndex: 3 - idx, marginLeft: idx === 0 ? 0 : -12, opacity: 1 - idx * 0.15 }]}
+                            />
+                          )) : (
+                            <View style={[styles.storeThumb, styles.storeThumbEmpty]} />
+                          )}
+                        </View>
+                        <View style={styles.storeInfo}>
+                          <Text style={styles.storeName} numberOfLines={1}>{s.name}</Text>
+                          <Text style={styles.storeCount}>{s.product_count} products</Text>
+                        </View>
+                        <View style={styles.arrowIcon}>
+                          <Ionicons name="chevron-forward" size={14} color="#fff" />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            {/* Trending outfits */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <TypographyText variant="subheading" style={styles.sectionTitle}>Trending Outfits</TypographyText>
+                <Text style={styles.sectionCount}>{visible.length} looks</Text>
+              </View>
+              {visible.length === 0 ? (
+                <Text style={styles.emptyText}>No products found.</Text>
+              ) : (
+                <View style={styles.prodGrid}>
+                  {visible.map((p) => {
+                    const key = String(p.id);
+                    return (
+                      <View key={key} style={styles.prodCard}>
+                        <TouchableOpacity 
+                          style={styles.prodMedia} 
+                          onPress={() => router.push(`/store/product/${p.id}?storeId=${p.store_id}`)}
+                          activeOpacity={0.9}
+                        >
+                          <Image source={{ uri: resolveUrl(p.image_url) }} style={styles.prodImg} />
+                          <TouchableOpacity 
+                            style={[styles.heartBtn, saved[key] && styles.heartBtnActive]} 
+                            onPress={() => setSaved(s => ({ ...s, [key]: !s[key] }))}
+                          >
+                            <Ionicons name={saved[key] ? "heart" : "heart-outline"} size={14} color={saved[key] ? "#fff" : "rgba(255,255,255,0.7)"} />
+                          </TouchableOpacity>
+                        </TouchableOpacity>
+                        <View style={styles.prodBody}>
+                          <Text style={styles.prodCat}>{p.brand || p.store_name}</Text>
+                          <Text style={styles.prodName} numberOfLines={1}>{p.name}</Text>
+                          <View style={styles.prodRow}>
+                            <Text style={styles.prodPrice}>{p.price || ''}</Text>
+                            <TouchableOpacity onPress={() => router.push(`/store/product/${p.id}?storeId=${p.store_id}`)} style={styles.tryBtn}>
+                              <Text style={styles.tryBtnText}>Try On</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </>
+        )}
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -170,12 +286,11 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  dotBadge: { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#c084fc', borderWidth: 1, borderColor: '#1a0730' },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#fff', fontSize: 13, fontFamily: 'ClashDisplay-Semibold' },
   section: { paddingHorizontal: 20, marginTop: 20 },
   headingMain: { fontSize: 24, color: '#fff', fontFamily: 'ClashDisplay-Semibold' },
-  gradText: { color: '#c084fc' }, // simplified gradient text for RN
+  gradText: { color: '#c084fc' },
   headingDesc: { fontSize: 12.5, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.6)', marginTop: 8 },
   searchSection: { paddingHorizontal: 20, marginTop: 16 },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, paddingHorizontal: 16, height: 48, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
@@ -185,6 +300,11 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: 'rgba(124,58,237,0.4)', borderColor: 'rgba(216,180,254,0.5)' },
   chipText: { color: 'rgba(255,255,255,0.75)', fontSize: 12, fontFamily: 'Montserrat_500Medium' },
   chipTextActive: { color: '#fff' },
+  stateBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, gap: 12 },
+  stateText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: 'Montserrat_400Regular', textAlign: 'center', paddingHorizontal: 40 },
+  retryBtn: { marginTop: 4, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 16, backgroundColor: 'rgba(124,58,237,0.4)', borderWidth: 1, borderColor: 'rgba(216,180,254,0.5)' },
+  retryText: { color: '#fff', fontSize: 13, fontFamily: 'Montserrat_600SemiBold' },
+  emptyText: { color: 'rgba(255,255,255,0.5)', fontSize: 12.5, fontFamily: 'Montserrat_400Regular', marginTop: 12 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { fontSize: 16, color: '#fff' },
   sectionCount: { fontSize: 10.5, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.45)' },
@@ -192,13 +312,14 @@ const styles = StyleSheet.create({
   storeCard: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   storeThumbs: { flexDirection: 'row', width: 64 },
   storeThumb: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#11071c' },
+  storeThumbEmpty: { backgroundColor: 'rgba(255,255,255,0.08)' },
   storeInfo: { flex: 1, marginLeft: 8 },
   storeName: { fontSize: 14, fontFamily: 'Montserrat_600SemiBold', color: '#fff' },
   storeCount: { fontSize: 11, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.5)', marginTop: 2 },
   arrowIcon: { width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
   prodGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 12, gap: 12 },
   prodCard: { width: '48%', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
-  prodMedia: { width: '100%', aspectRatio: 3/4, position: 'relative' },
+  prodMedia: { width: '100%', aspectRatio: 3/4, position: 'relative', backgroundColor: 'rgba(255,255,255,0.04)' },
   prodImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   heartBtn: { position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(10,4,20,0.5)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   heartBtnActive: { backgroundColor: '#c084fc', borderColor: '#d946ef' },

@@ -47,7 +47,7 @@ export default function TryOnOnboarding() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientTextContainer}
-              maskElement={<Text style={styles.titleGradient}>On Yourself</Text>}
+              {...({ maskElement: <Text style={styles.titleGradient}>On Yourself</Text> } as object)}
             >
               <Text style={[styles.titleGradient, { opacity: 0 }]}>On Yourself</Text>
             </LinearGradient>

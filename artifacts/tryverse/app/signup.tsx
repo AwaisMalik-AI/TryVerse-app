@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { TryVerseLogo } from '@/components/TryVerseLogo';
@@ -19,6 +19,7 @@ export default function SignupScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [sentMessage, setSentMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [googleMessage, setGoogleMessage] = useState<string | null>(null);
 
   const handleSignup = async () => {
     if (!fullName || !email || isLoading) return;
@@ -106,10 +107,11 @@ export default function SignupScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(400)} style={styles.social}>
-          <Pressable style={styles.ctaSecondary} onPress={() => Alert.alert("Coming Soon", "Google login is coming soon.")}>
+          <Pressable style={styles.ctaSecondary} onPress={() => setGoogleMessage('Google sign-up is not available yet. Please use your email address.')}>
             <GoogleIcon size={18} />
             <Text style={styles.ctaSecondaryText}>Continue with Google</Text>
           </Pressable>
+          {googleMessage ? <Text style={[styles.footerNote, { marginTop: 8 }]}>{googleMessage}</Text> : null}
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(500)} style={styles.footer}>
