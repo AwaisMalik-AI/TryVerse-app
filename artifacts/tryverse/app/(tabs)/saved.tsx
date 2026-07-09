@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Modal } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { TryVerseLogo } from '@/components/TryVerseLogo';
@@ -7,6 +7,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTryVerse, tvActions, SavedLook } from '@/lib/local-store';
+import { useAuth } from '@/lib/auth';
 
 const DAY = 86400000;
 
@@ -36,8 +37,15 @@ function relativeDate(ts: number) {
 
 export default function SavedScreen() {
   const router = useRouter();
-  const { saved } = useTryVerse();
+  const { saved, syncStatus, syncError } = useTryVerse();
+  const { isAuthenticated } = useAuth();
   const [filter, setFilter] = useState<Filter>("all");
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      tvActions.syncSavedLooks();
+    }
+  }, [isAuthenticated]);
 
   const [detail, setDetail] = useState<SavedLook | null>(null);
   const [pendingDelete, setPendingDelete] = useState<SavedLook | null>(null);
@@ -81,6 +89,26 @@ export default function SavedScreen() {
           <Text style={styles.headingMain}><Text style={styles.gradText}>Saved Looks</Text></Text>
           <Text style={styles.headingDesc}>Keep your favorite outfits, compare styles, and try them again anytime.</Text>
         </View>
+
+        {/* Sync status */}
+        {syncStatus === 'syncing' && (
+          <View style={styles.syncRow}>
+            <ActivityIndicator size="small" color="#c084fc" />
+            <Text style={styles.syncText}>Syncing your looks…</Text>
+          </View>
+        )}
+        {syncStatus === 'error' && (
+          <View style={styles.syncErrorBox}>
+            <Ionicons name="cloud-offline-outline" size={18} color="#fca5a5" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.syncErrorTitle}>Sync failed</Text>
+              <Text style={styles.syncErrorDesc}>{syncError || 'Your saved looks could not be synced.'}</Text>
+            </View>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => tvActions.syncSavedLooks()}>
+              <Text style={styles.retryBtnText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
@@ -192,6 +220,13 @@ const styles = StyleSheet.create({
   headingMain: { fontSize: 24, color: '#fff', fontFamily: 'ClashDisplay-Semibold' },
   gradText: { color: '#c084fc' },
   headingDesc: { fontSize: 12.5, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.6)', marginTop: 8 },
+  syncRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, marginTop: 14 },
+  syncText: { fontSize: 11, fontFamily: 'Montserrat_500Medium', color: 'rgba(255,255,255,0.6)' },
+  syncErrorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20, marginTop: 14, padding: 12, borderRadius: 12, backgroundColor: 'rgba(239,68,68,0.1)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)' },
+  syncErrorTitle: { fontSize: 12, fontFamily: 'Montserrat_600SemiBold', color: '#fca5a5' },
+  syncErrorDesc: { fontSize: 10.5, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  retryBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, backgroundColor: 'rgba(239,68,68,0.2)' },
+  retryBtnText: { fontSize: 11, fontFamily: 'Montserrat_600SemiBold', color: '#fca5a5' },
   chipRow: { paddingHorizontal: 20, marginTop: 16, gap: 8 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
   chipActive: { backgroundColor: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)' },

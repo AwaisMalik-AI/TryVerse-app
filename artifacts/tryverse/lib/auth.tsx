@@ -9,6 +9,7 @@ import {
   apiFetch,
   setOnSessionExpired,
 } from './api';
+import { tvActions } from './local-store';
 
 interface UserData {
   id: number;
@@ -71,6 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadUser();
   }, []);
+
+  // Scope device-local saved looks to the signed-in account so one user's
+  // looks are never synced into a different user's account.
+  useEffect(() => {
+    if (user && typeof user.id === 'number') {
+      tvActions.adoptUser(user.id);
+    }
+  }, [user?.id]);
 
   const loadUser = async () => {
     try {

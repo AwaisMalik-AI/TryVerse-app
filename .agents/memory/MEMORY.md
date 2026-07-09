@@ -1,1 +1,2 @@
 - [TryVerse backend API quirks](tryverse-backend-api.md) — is_pro nested under credits in subscription status; auth-restore flash needs isLoading spinner gates.
+- [Saved looks cross-device sync](saved-looks-sync.md) — Railway has no saved-looks API; own api-server + Postgres, auth by validating Bearer token against Railway /api/user/me.
