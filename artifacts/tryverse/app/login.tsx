@@ -9,6 +9,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
 import { apiPost } from '@/lib/api';
+import { useGoogleAuth } from '@/lib/useGoogleAuth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function LoginScreen() {
   const [forgotMessage, setForgotMessage] = useState<string | null>(null);
   const [forgotError, setForgotError] = useState<string | null>(null);
 
-  const [googleMessage, setGoogleMessage] = useState<string | null>(null);
+  const { signInWithGoogle, googleLoading, googleError } = useGoogleAuth();
 
   const handleLogin = async () => {
     if (!email || !password || isLoading) return;
@@ -159,11 +160,11 @@ export default function LoginScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(400)} style={styles.social}>
-          <Pressable style={styles.ctaSecondary} onPress={() => setGoogleMessage('Google sign-in is not available yet. Please use your email address.')}>
+          <Pressable style={[styles.ctaSecondary, googleLoading && { opacity: 0.6 }]} onPress={signInWithGoogle} disabled={googleLoading}>
             <GoogleIcon size={18} />
-            <Text style={styles.ctaSecondaryText}>Continue with Google</Text>
+            <Text style={styles.ctaSecondaryText}>{googleLoading ? 'Connecting to Google...' : 'Continue with Google'}</Text>
           </Pressable>
-          {googleMessage ? <Text style={[styles.optionText, { marginTop: 8, textAlign: 'center' }]}>{googleMessage}</Text> : null}
+          {googleError ? <Text style={[styles.optionText, { marginTop: 8, textAlign: 'center', color: '#f87171' }]}>{googleError}</Text> : null}
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(500)} style={styles.footer}>

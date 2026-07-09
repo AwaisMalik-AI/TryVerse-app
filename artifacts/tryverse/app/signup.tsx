@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth';
+import { useGoogleAuth } from '@/lib/useGoogleAuth';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function SignupScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [sentMessage, setSentMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [googleMessage, setGoogleMessage] = useState<string | null>(null);
+  const { signInWithGoogle, googleLoading, googleError } = useGoogleAuth();
 
   const handleSignup = async () => {
     if (!fullName || !email || isLoading) return;
@@ -107,11 +108,11 @@ export default function SignupScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(400)} style={styles.social}>
-          <Pressable style={styles.ctaSecondary} onPress={() => setGoogleMessage('Google sign-up is not available yet. Please use your email address.')}>
+          <Pressable style={[styles.ctaSecondary, googleLoading && { opacity: 0.6 }]} onPress={signInWithGoogle} disabled={googleLoading}>
             <GoogleIcon size={18} />
-            <Text style={styles.ctaSecondaryText}>Continue with Google</Text>
+            <Text style={styles.ctaSecondaryText}>{googleLoading ? 'Connecting to Google...' : 'Continue with Google'}</Text>
           </Pressable>
-          {googleMessage ? <Text style={[styles.footerNote, { marginTop: 8 }]}>{googleMessage}</Text> : null}
+          {googleError ? <Text style={[styles.footerNote, { marginTop: 8, color: '#f87171' }]}>{googleError}</Text> : null}
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(500)} style={styles.footer}>
