@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, FlatList, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, TextInput, Image } from 'react-native';
 import { Screen } from '@/components/Screen';
-import { TypographyText } from '@/components/Typography';
-import { TextInput } from '@/components/TextInput';
+import { TryVerseLogo } from '@/components/TryVerseLogo';
 import { Colors } from '@/constants/theme';
 import { apiPost } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Message {
   id: string;
@@ -16,22 +17,30 @@ interface Message {
 }
 
 const SUGGESTIONS = [
-  'What should I wear today?',
-  'What colors suit me?',
-  'Style this blazer',
-  'Find me something similar',
+  'What should I wear with a lavender blazer?',
+  'Help me find a summer look',
+  'Which color suits me best?',
+  'Style me for work',
+];
+
+const CHIPS = [
+  "Rate my outfit",
+  "What colors suit me?",
+  "Style this item",
+  "Find similar products",
 ];
 
 export default function StyloScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { isAuthenticated } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    { id: '1', role: 'stylo', content: 'Hi! I am Stylo, your personal AI fashion assistant. How can I help you style your look today?' }
-  ]);
+  
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const [sheet, setSheet] = useState(false);
 
   useEffect(() => {
     initChat();
@@ -70,7 +79,8 @@ export default function StyloScreen() {
       const styloMsg: Message = { id: Date.now().toString(), role: 'stylo', content: res.data.response };
       setMessages(prev => [styloMsg, ...prev]);
     } else {
-      const errorMsg: Message = { id: Date.now().toString(), role: 'stylo', content: 'Sorry, I am having trouble connecting right now.' };
+      console.warn('[Stylo] chat request failed:', res.error);
+      const errorMsg: Message = { id: Date.now().toString(), role: 'stylo', content: "I couldn't reach the styling service right now. Please check your connection and try again." };
       setMessages(prev => [errorMsg, ...prev]);
     }
     
@@ -80,179 +90,215 @@ export default function StyloScreen() {
   const renderMessage = ({ item }: { item: Message }) => {
     const isUser = item.role === 'user';
     return (
-      <View style={[styles.messageWrapper, isUser ? styles.messageWrapperUser : styles.messageWrapperStylo]}>
+      <View style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowStylo]}>
         {!isUser && (
-          <View style={styles.avatar}>
-            <Ionicons name="sparkles" size={16} color={Colors.text} />
+          <View style={styles.styloAvatarSmall}>
+            <Ionicons name="sparkles" size={12} color="#fff" />
           </View>
         )}
         <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleStylo]}>
-          <TypographyText variant="body" color={isUser ? Colors.text : Colors.text}>{item.content}</TypographyText>
+          <Text style={styles.msgText}>{item.content}</Text>
         </View>
       </View>
     );
   };
 
+  const HeaderComponent = () => (
+    <View style={styles.listHeader}>
+      <View style={styles.heroBox}>
+        <View style={styles.heroAvatar}>
+          <Ionicons name="sparkles" size={24} color="#fff" />
+        </View>
+        <Text style={styles.heroSub}>Stylo</Text>
+        <Text style={styles.heroTitle}>Hi Hussnain, I'm Stylo. What are we styling today?</Text>
+        <View style={styles.chipGrid}>
+          {CHIPS.map(c => (
+            <TouchableOpacity key={c} style={styles.chip} onPress={() => sendMessage(c)}>
+              <Text style={styles.chipText}>{c}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      
+      {isLoading && (
+        <View style={[styles.msgRow, styles.msgRowStylo, { marginTop: 24 }]}>
+          <View style={styles.styloAvatarSmall}>
+            <Ionicons name="sparkles" size={12} color="#fff" />
+          </View>
+          <View style={[styles.bubble, styles.bubbleStylo, { paddingHorizontal: 20 }]}>
+            <ActivityIndicator size="small" color="#c084fc" />
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
   return (
-    <Screen safeArea withBottomNav style={styles.container}>
+    <Screen safeArea withBottomNav>
       <View style={styles.header}>
-        <TypographyText variant="h2" style={styles.title}>Stylo</TypographyText>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/home')} style={styles.iconBtn}>
+            <Ionicons name="arrow-back" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TryVerseLogo height={30} width={120} />
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.iconBtn}>
+            <Ionicons name="notifications-outline" size={20} color="#fff" />
+            <View style={styles.dotBadge} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/profile')} style={styles.avatar}>
+            <Text style={styles.avatarText}>HK</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.titleSection}>
+        <Text style={styles.headingMain}><Text style={styles.gradText}>AI Stylist</Text></Text>
+        <Text style={styles.headingDesc}>Ask Stylo for outfit advice, color matching, size guidance, and product ideas.</Text>
       </View>
       
       <KeyboardAvoidingView 
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={[...messages].reverse()}
           keyExtractor={item => item.id}
           renderItem={renderMessage}
           contentContainerStyle={styles.listContent}
           inverted
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            isLoading ? (
-              <View style={styles.loadingWrapper}>
-                <ActivityIndicator color={Colors.primary} />
-              </View>
-            ) : null
-          }
-          ListFooterComponent={
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestionsContainer}>
+          ListFooterComponent={<HeaderComponent />}
+        />
+
+        {messages.length <= 1 && (
+          <View style={styles.suggestionsContainer}>
+            <Text style={styles.suggestionsTitle}>TRY ASKING</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
               {SUGGESTIONS.map(s => (
-                <TouchableOpacity key={s} style={styles.suggestionChip} onPress={() => sendMessage(s)}>
-                  <TypographyText variant="small" color={Colors.primary}>{s}</TypographyText>
+                <TouchableOpacity key={s} style={styles.suggestionBox} onPress={() => sendMessage(s)}>
+                  <Text style={styles.suggestionText}>{s}</Text>
+                  <Ionicons name="chevron-forward" size={14} color="#fff" />
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          }
-        />
+          </View>
+        )}
 
         <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom + 80, 24) }]}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              placeholder="Ask Stylo..."
-              value={input}
-              onChangeText={setInput}
-              style={styles.input}
-              onSubmitEditing={() => sendMessage(input)}
-              returnKeyType="send"
-            />
-            <TouchableOpacity 
-              style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]} 
-              onPress={() => sendMessage(input)}
-              disabled={!input.trim() || isLoading}
-            >
-              <Ionicons name="send" size={20} color={input.trim() ? Colors.text : Colors.textMuted} />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.plusBtn} onPress={() => setSheet(true)}>
+            <Ionicons name="add" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TextInput
+            placeholder="Ask Stylo anything..."
+            placeholderTextColor="rgba(255,255,255,0.4)"
+            value={input}
+            onChangeText={setInput}
+            style={styles.input}
+            onSubmitEditing={() => sendMessage(input)}
+            returnKeyType="send"
+          />
+          <TouchableOpacity 
+            style={[styles.sendBtn, !input.trim() && { opacity: 0.5 }]} 
+            onPress={() => sendMessage(input)}
+            disabled={!input.trim() || isLoading}
+          >
+            <Ionicons name="send" size={16} color="#fff" />
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {sheet && (
+        <View style={styles.sheetScrim}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setSheet(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>Add to chat</Text>
+              <TouchableOpacity style={styles.iconBtnSmall} onPress={() => setSheet(false)}>
+                <Ionicons name="close" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.sheetBody}>
+              {[
+                { icon: "camera-outline", title: "Upload outfit photo", desc: "Snap or choose a full-body outfit" },
+                { icon: "images-outline", title: "Choose saved look", desc: "Restyle one of your saved outfits" },
+                { icon: "link-outline", title: "Paste product link", desc: "Style around a specific clothing item" }
+              ].map((opt) => (
+                <TouchableOpacity key={opt.title} style={styles.sheetOpt} onPress={() => { setSheet(false); sendMessage(`I'd like to ${opt.title.toLowerCase()}`); }}>
+                  <View style={styles.sheetOptIcon}><Ionicons name={opt.icon as any} size={20} color="#fff" /></View>
+                  <View style={styles.sheetOptText}>
+                    <Text style={styles.sheetOptTitle}>{opt.title}</Text>
+                    <Text style={styles.sheetOptDesc}>{opt.desc}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.5)" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    padding: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  listContent: {
-    padding: 24,
-    gap: 16,
-  },
-  messageWrapper: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 16,
-    maxWidth: '85%',
-  },
-  messageWrapperUser: {
-    alignSelf: 'flex-end',
-    justifyContent: 'flex-end',
-  },
-  messageWrapperStylo: {
-    alignSelf: 'flex-start',
-    gap: 8,
-  },
-  avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bubble: {
-    padding: 16,
-    borderRadius: 20,
-  },
-  bubbleUser: {
-    backgroundColor: 'rgba(160, 32, 240, 0.3)',
-    borderBottomRightRadius: 4,
-  },
-  bubbleStylo: {
-    backgroundColor: Colors.surfaceHighlight,
-    borderBottomLeftRadius: 4,
-  },
-  loadingWrapper: {
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  suggestionsContainer: {
-    marginBottom: 32,
-    marginTop: 16,
-    flexDirection: 'row',
-  },
-  suggestionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(160, 32, 240, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(160, 32, 240, 0.3)',
-    marginRight: 12,
-  },
-  inputContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    backgroundColor: Colors.background,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  inputWrapper: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  input: {
-    paddingRight: 48,
-    marginBottom: 0,
-  },
-  sendButton: {
-    position: 'absolute',
-    right: 12,
-    top: 18,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 16,
-  },
-  sendButtonDisabled: {
-    backgroundColor: Colors.surfaceHighlight,
-  }
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20 },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  dotBadge: { position: 'absolute', top: 8, right: 8, width: 8, height: 8, borderRadius: 4, backgroundColor: '#c084fc', borderWidth: 1, borderColor: '#1a0730' },
+  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#fff', fontSize: 13, fontFamily: 'ClashDisplay-Semibold' },
+  titleSection: { paddingHorizontal: 20, marginTop: 16 },
+  headingMain: { fontSize: 24, color: '#fff', fontFamily: 'ClashDisplay-Semibold' },
+  gradText: { color: '#c084fc' },
+  headingDesc: { fontSize: 12.5, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.6)', marginTop: 8 },
+  
+  keyboardAvoid: { flex: 1, marginTop: 20 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 20 },
+  listHeader: { paddingBottom: 24 },
+  
+  heroBox: { alignItems: 'center', padding: 24, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  heroAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(124,58,237,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(216,180,254,0.3)' },
+  heroSub: { fontSize: 10, fontFamily: 'Montserrat_600SemiBold', color: '#c4b5fd', textTransform: 'uppercase', letterSpacing: 2, marginTop: 12 },
+  heroTitle: { fontSize: 16, fontFamily: 'ClashDisplay-Semibold', color: '#fff', textAlign: 'center', marginTop: 8 },
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 16 },
+  chip: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  chipText: { fontSize: 11, fontFamily: 'Montserrat_500Medium', color: 'rgba(255,255,255,0.8)' },
+  
+  msgRow: { flexDirection: 'row', marginBottom: 12 },
+  msgRowUser: { justifyContent: 'flex-end', paddingLeft: 40 },
+  msgRowStylo: { justifyContent: 'flex-start', paddingRight: 40, gap: 10 },
+  styloAvatarSmall: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(124,58,237,0.5)', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  bubble: { paddingHorizontal: 16, paddingVertical: 12, borderRadius: 18 },
+  bubbleUser: { backgroundColor: 'rgba(124,58,237,0.4)', borderBottomRightRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  bubbleStylo: { backgroundColor: 'rgba(255,255,255,0.06)', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  msgText: { fontSize: 13, fontFamily: 'Montserrat_400Regular', color: '#fff', lineHeight: 20 },
+  
+  suggestionsContainer: { paddingVertical: 12 },
+  suggestionsTitle: { fontSize: 10.5, fontFamily: 'Montserrat_600SemiBold', color: 'rgba(255,255,255,0.4)', paddingHorizontal: 20, letterSpacing: 1, marginBottom: 8 },
+  suggestionsScroll: { paddingHorizontal: 20, gap: 8 },
+  suggestionBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', gap: 8 },
+  suggestionText: { fontSize: 12, fontFamily: 'Montserrat_500Medium', color: '#fff' },
+  
+  inputContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12, backgroundColor: '#06010f', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)', gap: 8 },
+  plusBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, height: 44, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 22, paddingHorizontal: 16, color: '#fff', fontSize: 13, fontFamily: 'Montserrat_400Regular', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#c084fc', alignItems: 'center', justifyContent: 'center' },
+  
+  sheetScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end', zIndex: 100 },
+  sheet: { backgroundColor: '#11071c', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', paddingBottom: 40 },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center', marginTop: 12, marginBottom: 16 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 20 },
+  sheetTitle: { fontSize: 16, fontFamily: 'ClashDisplay-Semibold', color: '#fff' },
+  iconBtnSmall: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  sheetBody: { paddingHorizontal: 16, gap: 8 },
+  sheetOpt: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', gap: 16 },
+  sheetOptIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
+  sheetOptText: { flex: 1 },
+  sheetOptTitle: { fontSize: 13, fontFamily: 'Montserrat_500Medium', color: '#fff' },
+  sheetOptDesc: { fontSize: 11, fontFamily: 'Montserrat_400Regular', color: 'rgba(255,255,255,0.5)', marginTop: 2 },
 });

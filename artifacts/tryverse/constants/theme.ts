@@ -1,13 +1,13 @@
 export const Colors = {
-  background: '#09090E',
-  surface: '#151522',
-  surfaceHighlight: '#1F1F35',
-  primary: '#A020F0', // Purple
-  secondary: '#FF00FF', // Magenta
-  tertiary: '#7DF9FF', // Violet glow
-  text: '#FFFFFF',
-  textMuted: '#9CA3AF',
-  border: '#3F2A56',
+  background: '#000000',
+  surface: 'rgba(255,255,255,0.06)',
+  surfaceHighlight: 'rgba(255,255,255,0.1)',
+  primary: '#a855f7',
+  secondary: '#d946ef',
+  tertiary: '#7c3aed',
+  text: '#ffffff',
+  textMuted: 'rgba(255,255,255,0.6)',
+  border: 'rgba(255,255,255,0.12)',
   error: '#EF4444',
   success: '#10B981',
 };

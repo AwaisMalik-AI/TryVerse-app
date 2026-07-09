@@ -24,7 +24,12 @@ function RootLayoutNav() {
       segments[0] === 'try-on-result' ||
       segments[0] === 'store' ||
       segments[0] === 'profile' ||
-      segments[0] === 'settings';
+      segments[0] === 'settings' ||
+      segments[0] === 'pose-studio' ||
+      segments[0] === 'video-studio' ||
+      segments[0] === 'pricing' ||
+      segments[0] === 'credits' ||
+      segments[0] === 'notifications';
     const authRoute = segments[0] === 'login' || segments[0] === 'signup';
 
     if (!isAuthenticated && protectedRoute) {
@@ -43,9 +48,20 @@ function RootLayoutNav() {
       <Stack.Screen name="signup" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="try-on-result" />
+      <Stack.Screen name="store/[storeId]" />
       <Stack.Screen name="store/product/[id]" />
       <Stack.Screen name="profile" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="credits" />
+      <Stack.Screen name="pose-studio/index" />
+      <Stack.Screen name="pose-studio/result" />
+      <Stack.Screen name="video-studio/index" />
+      <Stack.Screen name="video-studio/result" />
+      <Stack.Screen name="pricing/index" />
+      <Stack.Screen name="pricing/checkout" />
+      <Stack.Screen name="pricing/payment" />
+      <Stack.Screen name="pricing/success" />
     </Stack>
   );
 }
